@@ -1,6 +1,7 @@
 // view-reader.js
 // The Bible reader: one chapter at a time, with verse selection for
-// highlighting, notes, links between verses and copying.
+// highlighting, notes, links between verses, copying and study, and the
+// Latin Vulgate beneath each verse for those who want it.
 
 import {
   book, books, chapterTitle, formatRange, formatVerseId, loadBook, parseReference, parseVerseId,
@@ -8,7 +9,9 @@ import {
 } from './bible.js';
 import { go } from './context.js';
 import { db, saveSetting, settings } from './db.js';
-import { clear, confirmSheet, copyText, el, icon, openSheet, toast } from './ui.js';
+import { addPassage, allReflections, handText, reflectionsCiting, titleOf } from './reflections.js';
+import { latinFor } from './study.js';
+import { clear, confirmSheet, copyText, el, icon, once, openSheet, toast } from './ui.js';
 
 const HIGHLIGHT_COLORS = ['gold', 'green', 'blue', 'rose'];
 
@@ -23,14 +26,54 @@ export async function render(container, { bookId, chapter, verse, endVerse }) {
   const verses = chapters[chapterNumber - 1];
   await saveSetting('lastPlace', { book: bookId, chapter: chapterNumber });
 
-  const state = { selected: new Set(), marks: await loadMarks(bookId, chapterNumber) };
+  // `settled` is set once the reader touches the page: after that it is not moved under them.
+  const state = { selected: new Set(), marks: await loadMarks(bookId, chapterNumber), latin: null, settled: false };
   const textNode = el('div', { class: 'chapter-text' });
   const actionBar = el('div', { class: 'action-bar', hidden: true });
 
   function applyTextSettings() {
     textNode.style.fontSize = `${settings().textSize}px`;
     document.documentElement.style.setProperty('--reading-size', `${settings().textSize}px`);
-    textNode.classList.toggle('flow', settings().verseLayout === 'flow');
+    // With the Latin shown, each verse stands on its own with its Latin beneath.
+    textNode.classList.toggle('flow', settings().verseLayout === 'flow' && !settings().showLatin);
+    textNode.classList.toggle('with-latin', Boolean(settings().showLatin));
+    showLatin();
+  }
+
+  /** Fetch the Latin of this chapter if it is wanted and not yet here, then draw it in. */
+  async function showLatin() {
+    if (!settings().showLatin) {
+      if (state.latin) { state.latin = null; drawVerses(); }
+      return;
+    }
+    if (state.latin) return;
+    try {
+      const latin = await latinFor(bookId, chapterNumber);
+      // It may have been turned off again while the book was on its way.
+      if (!settings().showLatin) return;
+      state.latin = latin;
+      drawVerses();
+      // The page has just grown under the reader: go back to the verse they came for.
+      arrive();
+    } catch (error) {
+      console.warn(error);
+      toast(navigator.onLine ? 'The Latin could not be loaded' : 'The Latin of this book is not saved on this device yet');
+    }
+  }
+
+  /** Bring the verse the reader came for into view and mark it, until they touch the page. */
+  function arrive() {
+    if (!verse || state.settled) return;
+    const first = Number(verse);
+    const last = Number(endVerse) || first;
+    requestAnimationFrame(() => {
+      const target = textNode.querySelector(`.verse[data-v="${first}"]`);
+      if (target) target.scrollIntoView({ block: 'center' });
+      for (let n = first; n <= last; n += 1) {
+        const node = textNode.querySelector(`.verse[data-v="${n}"]`);
+        if (node) node.classList.add('arrived');
+      }
+    });
   }
 
   async function refresh() {
@@ -58,20 +101,27 @@ export async function render(container, { bookId, chapter, verse, endVerse }) {
         },
       },
       el('sup', { class: 'verse-number', text: number }),
-      el('span', { class: 'verse-body', text }));
+      el('span', { class: 'verse-body', text }),
+      state.latin && state.latin[index] ? el('span', { class: 'verse-latin', lang: 'la', text: state.latin[index] }) : null);
       textNode.append(node, ' ');
 
       const notes = state.marks.notes.filter((note) => parseVerseId(note.end || note.start).verse === number);
       const links = state.marks.links.filter((link) => link.anchor === number);
-      if (notes.length || links.length) {
+      const cited = state.marks.reflections.filter((item) => item.verse === number);
+      if (notes.length || links.length || cited.length) {
         textNode.append(el('span', { class: 'annotations' },
           notes.map((note) => el('button', { class: 'note-card', onclick: () => editNote(note) },
             note.end && note.end !== note.start ? el('span', { class: 'note-range', text: formatRange(note.start, note.end, { short: true }) }) : null,
             el('span', { class: 'note-body', text: note.text }))),
-          links.length ? el('span', { class: 'link-chips' }, links.map((link) => el('button', {
-            class: `link-chip${link.incoming ? ' incoming' : ''}`,
-            onclick: () => openLink(link),
-          }, link.incoming ? `from ${link.label}` : link.label))) : null));
+          links.length || cited.length ? el('span', { class: 'link-chips' },
+            links.map((link) => el('button', {
+              class: `link-chip${link.incoming ? ' incoming' : ''}`,
+              onclick: () => openLink(link),
+            }, link.incoming ? `from ${link.label}` : link.label)),
+            cited.map((item) => el('button', {
+              class: 'link-chip reflection-chip',
+              onclick: () => go(`#/reflection/${item.reflection.id}`),
+            }, titleOf(item.reflection)))) : null));
       }
     });
   }
@@ -130,8 +180,21 @@ export async function render(container, { bookId, chapter, verse, endVerse }) {
           el('button', { class: 'action-button', onclick: addNote }, icon('note', 20), el('span', { text: 'Note' })),
           el('button', { class: 'action-button', onclick: addLink }, icon('link', 20), el('span', { text: 'Link' })),
           el('button', { class: 'action-button', onclick: copySelection }, icon('copy', 20), el('span', { text: 'Copy' })),
+          el('button', { class: 'action-button', onclick: study }, icon('study', 20), el('span', { text: 'Study' })),
           el('button', { class: 'action-button', onclick: findWords }, icon('search', 20), el('span', { text: 'Find' })),
           el('button', { class: 'action-button', onclick: prayWith }, icon('cross', 20), el('span', { text: 'Pray' })))));
+  }
+
+  /** Open the study screen for the selected verses: the Fathers, cross-references and Latin. */
+  function study() {
+    const { numbers, contiguous } = selectionRange();
+    if (!contiguous) {
+      toast('Choose verses that follow one another to study them together');
+      return;
+    }
+    const first = numbers[0];
+    const last = numbers[numbers.length - 1];
+    go(`#/study/${bookId}/${chapterNumber}/${first === last ? first : `${first}-${last}`}`);
   }
 
   /** Choose words from the selected verses and look for them across the Bible. */
@@ -192,6 +255,7 @@ export async function render(container, { bookId, chapter, verse, endVerse }) {
     const { start, end } = selectionRange();
     noteSheet({ start, end, text: '' }, async () => { state.selected.clear(); await refresh(); });
   }
+
 
   function editNote(note) {
     noteSheet(note, refresh);
@@ -254,18 +318,7 @@ export async function render(container, { bookId, chapter, verse, endVerse }) {
   drawVerses();
 
   // Arriving at a verse: show it and mark it briefly.
-  if (verse) {
-    const first = Number(verse);
-    const last = Number(endVerse) || first;
-    requestAnimationFrame(() => {
-      const target = textNode.querySelector(`.verse[data-v="${first}"]`);
-      if (target) target.scrollIntoView({ block: 'center' });
-      for (let n = first; n <= last; n += 1) {
-        const node = textNode.querySelector(`.verse[data-v="${n}"]`);
-        if (node) node.classList.add('arrived');
-      }
-    });
-  }
+  arrive();
 
   // Swipe left and right to turn chapters.
   let touchStart = null;
@@ -284,6 +337,7 @@ export async function render(container, { bookId, chapter, verse, endVerse }) {
     if (dx > 0 && previous) go(toPath(previous));
   };
   container.addEventListener('touchstart', onTouchStart, { passive: true });
+  for (const kind of ['pointerdown', 'wheel']) container.addEventListener(kind, () => { state.settled = true; }, { passive: true, once: true });
   container.addEventListener('touchend', onTouchEnd, { passive: true });
 
   return () => {
@@ -306,7 +360,9 @@ function neighbour(bookId, chapter, step) {
 /** Highlights, notes and links touching one chapter. */
 async function loadMarks(bookId, chapter) {
   const prefix = `${bookId}.${chapter}.`;
-  const [highlightRows, noteRows, linkRows] = await Promise.all([db.all('highlights'), db.all('notes'), db.all('links')]);
+  const [highlightRows, noteRows, linkRows, reflections] = await Promise.all([
+    db.all('highlights'), db.all('notes'), db.all('links'), reflectionsCiting(bookId, chapter),
+  ]);
   const highlights = new Map(highlightRows.filter((row) => row.id.startsWith(prefix)).map((row) => [row.id, row.color]));
   const notes = noteRows.filter((note) => (note.end || note.start).startsWith(prefix));
   const links = [];
@@ -320,7 +376,7 @@ async function loadMarks(bookId, chapter) {
       links.push({ record, incoming: true, anchor: parseVerseId(toEnd).verse, target: record.from, label: formatRange(record.from, fromEnd, { short: true }) });
     }
   }
-  return { highlights, notes, links };
+  return { highlights, notes, links, reflections };
 }
 
 // ---------------------------------------------------------------------------
@@ -349,8 +405,45 @@ function noteSheet(note, onDone) {
         isNew ? el('button', { class: 'button quiet', onclick: close }, 'Cancel')
           : el('button', { class: 'button danger quiet', onclick: () => { close(); confirmSheet('Delete this note?', 'The note will be removed from this device.', 'Delete note', async () => { await db.remove('notes', note.id); toast('Note deleted'); await onDone(); }); } }, 'Delete'),
         el('button', { class: 'button', onclick: save }, 'Save note')),
+      // Whatever has been typed goes along: it becomes part of the reflection chosen.
+      isNew ? el('button', { class: 'text-button', onclick: () => { const words = area.value; close(); reflectionSheet(note.start, note.end, onDone, words); } }, 'Add to a reflection instead') : null,
     ];
   });
+}
+
+/**
+ * Cite a passage in one of the reader's reflections, or begin a new one with
+ * it. `words` is anything already typed about the passage, which is kept as
+ * part of the reflection.
+ */
+async function reflectionSheet(start, end, onDone, words = '') {
+  const all = (await allReflections().catch(() => [])).sort((a, b) => (b.updated || '').localeCompare(a.updated || ''));
+  const typed = words.trim();
+  // Until a reflection has taken the words, closing this sheet goes back to the note they were typed in.
+  let taken = false;
+  const backToNote = () => { if (!taken && typed) noteSheet({ start, end, text: typed }, onDone); };
+  openSheet(`Add ${formatRange(start, end, { short: true })} to a reflection`, (close) => [
+    el('p', { class: 'muted small', text: typed
+      ? 'A reflection is a note on a theme that can gather many passages. What you have written goes with the passage.'
+      : 'A reflection is a note on a theme that can gather many passages.' }),
+    el('div', { class: 'choice-list' },
+      el('button', { class: 'picker-book current', onclick: () => { taken = true; close(); handText(typed); go(`#/reflection/new/${start}/${end}`); } }, 'A new reflection'),
+      all.map((record) => el('button', {
+        class: 'picker-book',
+        onclick: once(async () => {
+          const saved = await addPassage(record.id, start, end, typed);
+          if (!saved) {
+            close();
+            toast('That reflection is no longer here');
+            return;
+          }
+          taken = true;
+          close();
+          toast(`Added to “${titleOf(record)}”`);
+          await onDone();
+        }),
+      }, el('span', { text: titleOf(record) })))),
+  ], { tall: all.length > 5, onClose: backToNote });
 }
 
 function linkSheet(start, end, onDone) {
@@ -412,10 +505,19 @@ function textSheet(onChange) {
         onChange();
       },
     }, label);
+    const latin = el('input', { type: 'checkbox', id: 'text-latin' });
+    latin.checked = Boolean(settings().showLatin);
+    latin.addEventListener('change', async () => {
+      await saveSetting('showLatin', latin.checked);
+      onChange();
+    });
     return [
       el('label', { class: 'setting-row' }, el('span', { text: 'Size' }), size, sample),
       el('div', { class: 'setting-row' }, el('span', { text: 'Verses' }),
         el('div', { class: 'segmented' }, layout('lines', 'One per line'), layout('flow', 'Running text'))),
+      el('label', { class: 'setting-row check-row', for: 'text-latin' },
+        el('span', { class: 'setting-text' }, el('span', { text: 'Latin beneath each verse' }), el('span', { class: 'muted small', text: 'The Clementine Vulgate, from which the Douay-Rheims was made.' })),
+        latin),
     ];
   });
 }

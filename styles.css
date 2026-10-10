@@ -944,31 +944,6 @@ mark { background: var(--hl-gold); color: inherit; border-radius: 3px; padding: 
 .daily-list { list-style: none; margin: 0; padding: 0; }
 .daily-row { display: flex; align-items: center; gap: 12px; }
 .daily-row + .daily-row { border-top: 1px solid var(--line); }
-.daily-check {
-  /* The button is a comfortable 44px target; the ring drawn inside it is smaller. */
-  flex: none;
-  width: 44px;
-  height: 44px;
-  margin: 0 -4px 0 -7px;
-  border: 0;
-  background: transparent;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-.check-ring {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 1.5px solid color-mix(in srgb, var(--muted) 55%, transparent);
-  color: var(--surface);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.daily-row.done .check-ring { background: var(--lit); border-color: var(--lit); }
-.daily-check:disabled { opacity: 0.4; cursor: default; }
 .daily-body {
   flex: 1;
   min-width: 0;
@@ -983,9 +958,8 @@ mark { background: var(--hl-gold); color: inherit; border-radius: 3px; padding: 
 }
 .daily-title { font-family: var(--serif); font-size: 1.13rem; font-weight: 600; line-height: 1.3; }
 .daily-sub { color: var(--muted); font-size: 0.88rem; }
-.daily-row.done .daily-title { color: var(--muted); }
 .daily-go { color: var(--muted); display: inline-flex; }
-.daily-footer { display: flex; justify-content: space-between; margin: 6px -4px -8px; }
+.daily-footer { display: flex; justify-content: space-between; flex-wrap: wrap; margin: 6px -4px -8px; }
 
 /* ---------- Forms in sheets ---------- */
 
@@ -1220,3 +1194,402 @@ body.has-step-bar .toast { bottom: calc(env(safe-area-inset-bottom) + var(--tabb
 .chip-button { min-height: 40px; }
 .segment { min-height: 40px; }
 .prayer-include > summary { min-height: 40px; display: list-item; padding: 0.6em 0; }
+
+/* =====================================================================
+   Study, reflections, the journal and the day (release 0.3)
+   ===================================================================== */
+
+/* ---------- The day's banner is a link to the page about the day ---------- */
+
+a.hero { display: block; color: inherit; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.hero-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 12px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--lit);
+}
+.week-day.obliged .week-number { text-decoration: underline; text-decoration-color: var(--rubric); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+
+.patron-card { padding: 8px 18px 12px; border-color: var(--lit); }
+.patron-card .row-button + .row-button { border-top: 1px solid var(--line); }
+
+/* ---------- On this day ---------- */
+
+.card-heading.plain { font-size: 1.02rem; font-weight: 650; font-family: var(--sans); }
+.event-head { display: flex; align-items: baseline; gap: 10px; margin: 0; }
+.event-year { font-family: var(--serif); font-size: 1.25rem; font-weight: 600; color: var(--rubric); }
+.event-kind { font-size: 0.78rem; font-weight: 650; color: var(--muted); letter-spacing: 0.02em; }
+.event-title { font-family: var(--serif); font-size: 1.15rem; font-weight: 600; line-height: 1.3; margin: 0; }
+.event-text { font-family: var(--serif); font-size: 1.04rem; line-height: 1.5; margin: 2px 0 0; color: var(--ink); }
+.history-card { gap: 3px; }
+.event { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.on-this-day .event:last-of-type { border-bottom: 0; }
+
+/* ---------- The page about a day ---------- */
+
+.day-page .hero-meta { margin-top: 8px; }
+.colour-chip { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
+.colour-chip .week-dot { margin-top: 0; }
+.obligation {
+  margin: 18px 0 6px;
+  padding: 12px 16px;
+  border-radius: var(--radius-small);
+  background: var(--soft);
+  border-left: 3px solid var(--line);
+}
+.obligation.obliged { border-left-color: var(--rubric); }
+.obligation-text { margin: 0; font-size: 0.98rem; line-height: 1.45; }
+.obligation.obliged .obligation-text:first-child { font-weight: 600; }
+.obligation-text + .obligation-text { margin-top: 8px; }
+.day-account { margin-top: 6px; }
+.day-account .text-button { margin-left: -4px; }
+.day-actions { margin: 18px 0 4px; }
+.season-note { margin-top: 18px; border-top: 1px solid var(--line); }
+.intention-block .text-button { display: block; text-align: left; padding: 4px 0; font-family: var(--serif); font-size: 1.08rem; }
+
+/* ---------- Study ---------- */
+
+.study-text { font-family: var(--serif); font-size: var(--reading-size, 19px); line-height: 1.55; margin-top: 10px; }
+.study-verse { margin: 0 0 0.4em; }
+.study-latin { margin: 10px 0 16px; }
+.study-latin-text, .verse-latin {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.study-latin-text { font-size: calc(var(--reading-size, 19px) * 0.92); margin: 0 0 2px; }
+.verse-latin { display: block; font-size: 0.9em; margin: 0.15em 0 0.5em; }
+.chapter-text.with-latin .verse { display: block; margin-bottom: 0.35em; }
+.study-page .passage-heading { margin-top: 28px; }
+.xref-text {
+  font-family: var(--serif);
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.note-card.static { cursor: default; margin: 8px 0; }
+
+.father { border-bottom: 1px solid var(--line); }
+.father > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  cursor: pointer;
+  padding: 14px 2px;
+  min-height: 48px;
+  list-style: none;
+}
+.father > summary::-webkit-details-marker { display: none; }
+.father > summary::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-right: 1.6px solid var(--muted);
+  border-bottom: 1.6px solid var(--muted);
+  transform: rotate(-45deg);
+  flex: none;
+  align-self: center;
+  transition: transform 0.15s ease;
+}
+.father[open] > summary::before { transform: rotate(45deg); }
+.father-name { font-family: var(--serif); font-size: 1.16rem; font-weight: 600; flex: 1; }
+.father-year { color: var(--muted); font-size: 0.86rem; white-space: nowrap; }
+.father-count {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--soft);
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-align: center;
+}
+.father-passage { padding: 0 2px 14px 19px; }
+.father-passage + .father-passage { border-top: 1px dashed var(--line); padding-top: 12px; }
+.father-source { margin: 0 0 4px; font-size: 0.8rem; font-weight: 650; color: var(--rubric); }
+.father-source .muted { font-weight: 500; }
+.father-text { font-family: var(--serif); font-size: calc(var(--reading-size, 19px) * 0.95); line-height: 1.55; }
+.father-text p { margin: 0 0 0.7em; }
+.father-text p:last-child { margin-bottom: 0.2em; }
+.father-passage .text-button { margin-left: -4px; }
+
+/* ---------- Reflections ---------- */
+
+.notes-tools { margin: 14px 0 10px; align-items: center; }
+.segmented.sub { margin-top: 14px; }
+.reflection-chip { color: var(--rubric); border-style: dashed; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reflection-page .rubric { margin-bottom: 8px; }
+.field.reflection-title {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  padding: 6px 0 10px;
+  font-family: var(--serif);
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.2;
+  resize: none;
+  overflow: hidden;
+  min-height: 0;
+  display: block;
+}
+textarea.field.reflection-text {
+  border: 0;
+  background: transparent;
+  padding: 14px 0;
+  /* Never under 16px: below that iOS zooms the page when the field is tapped. */
+  font-size: max(16px, var(--reading-size, 19px));
+  line-height: 1.6;
+  resize: none;
+  min-height: 132px;
+}
+.field.reflection-title:focus, textarea.field.reflection-text:focus { outline: none; box-shadow: none; }
+.reflection-refs { margin: 6px 0 12px; }
+.reflection-ref { display: flex; align-items: flex-start; gap: 6px; border-bottom: 1px solid var(--line); }
+.ref-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--ink);
+}
+.reflection-date { margin-top: 22px; }
+.reflection-date .field { width: auto; }
+
+/* ---------- Journal ---------- */
+
+.journal-field { margin-top: 18px; }
+.journal-page .button-row { margin-top: 20px; }
+.journal-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-family: var(--serif);
+  font-size: 1rem;
+}
+
+/* ---------- My saints ---------- */
+
+.feast-today { color: var(--rubric); font-weight: 600; }
+.saint-notes { margin-top: 20px; }
+.saint-invocation { margin-top: 22px; font-family: var(--serif); font-size: 1.2rem; font-style: italic; text-align: center; }
+
+/* Six actions fit under the swatches on a narrow phone. */
+.action-button span { font-size: 0.78rem; }
+.father-note { margin: 2px 0 10px; padding: 8px 12px; border-left: 3px solid var(--line); color: var(--muted); font-family: var(--sans); font-size: 0.86rem; line-height: 1.45; }
+
+/* =====================================================================
+   Settings, the pages about the app, the daily list without boxes and
+   the Mass companion (release 0.4)
+   ===================================================================== */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Settings ---------- */
+
+.setting-row.stacked { flex-direction: column; align-items: stretch; gap: 8px; }
+.setting-row.stacked .segmented { display: flex; }
+.setting-sample { margin: 2px 0 10px; font-family: var(--serif); line-height: 1.5; }
+.setting-row > .slider { max-width: 220px; }
+.storage-figures { margin: 12px 0 10px; }
+.storage-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+.storage-label { display: flex; flex-direction: column; min-width: 0; }
+.storage-value { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.storage-line.total { font-weight: 650; }
+.update-status { margin: 6px 0 2px; }
+.update-status p + p { margin-top: 6px; }
+.update-status .button { margin-top: 10px; }
+.update-missing { margin: 8px 0; padding-left: 20px; font-size: 0.9rem; overflow-wrap: anywhere; }
+
+/* ---------- Privacy, terms, sources, what is new ---------- */
+
+.about-page { font-family: var(--serif); font-size: 1.05rem; line-height: 1.55; }
+.about-page p + p, .about-page ul + p, .about-page p + ul { margin-top: 12px; }
+.about-page ul { padding-left: 22px; }
+.about-page li + li { margin-top: 7px; }
+.about-page code { font-size: 0.9em; overflow-wrap: anywhere; }
+.about-heading {
+  font-family: var(--sans);
+  font-size: 1.02rem;
+  font-weight: 650;
+  margin: 26px 0 8px;
+}
+.about-page > .about-heading:first-child { margin-top: 0; }
+.out-link { color: var(--lit); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.out-link .icon { display: inline-block; vertical-align: -2px; margin-left: 3px; }
+
+/* ---------- The daily list: no boxes, a quiet word once prayed ---------- */
+
+div.daily-body { cursor: default; }
+.daily-mark {
+  flex: none;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--lit);
+}
+.prayed-list { margin: 10px 0 4px; }
+.prayed-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  color: var(--ink);
+}
+.prayed-state { flex: none; font-size: 0.84rem; color: var(--muted); }
+.prayed-row.on .prayed-state { color: var(--lit); font-weight: 600; }
+
+/* ---------- Choosing how an entry repeats ---------- */
+
+.repeat-detail { margin-top: 12px; }
+.repeat-detail:empty { display: none; }
+.day-toggles.months { grid-template-columns: repeat(4, 1fr); }
+.day-toggles.months .day-toggle { aspect-ratio: auto; max-height: none; min-height: 44px; border-radius: 999px; }
+.select-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.select-row .field { width: auto; flex: 1; min-width: 110px; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-button.on { background: var(--lit); border-color: var(--lit); color: var(--surface); }
+.repeat-summary {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: var(--radius-small);
+  background: var(--soft);
+  font-size: 0.95rem;
+}
+
+/* ---------- The Mass companion ---------- */
+
+.mass-intro { margin-top: 12px; }
+.mass-credit { margin: 6px 2px 10px; }
+.mass-controls { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 6px; }
+.mass-controls .segmented { display: flex; }
+.mass-wake { padding: 6px 2px 12px; }
+
+.posture {
+  flex: none;
+  align-self: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.posture[data-posture="kneel"] { background: var(--soft); border-color: transparent; color: var(--lit); }
+.posture[data-posture="stand"] { color: var(--ink); }
+
+.mass-outline-part { margin: 18px 0 2px; font-size: 0.86rem; font-weight: 650; color: var(--rubric); }
+.mass-outline-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.mass-outline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 2px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  color: var(--ink);
+}
+.mass-outline-title { font-family: var(--serif); font-size: 1.06rem; }
+.mass-notes p + p { margin-top: 10px; }
+.mass-notes p { font-size: 0.95rem; }
+
+.mass-part { margin: 30px 2px 10px; }
+.mass-part-title { font-family: var(--serif); font-size: 1.45rem; font-weight: 600; line-height: 1.2; margin-bottom: 4px; }
+/* A part jumped to from the outline stops clear of the top of the screen. */
+.mass-section { scroll-margin-top: calc(env(safe-area-inset-top) + 68px); }
+.mass-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mass-title { font-family: var(--serif); font-size: 1.22rem; font-weight: 600; line-height: 1.25; }
+.mass-latin-name { display: block; font-family: var(--sans); font-size: 0.8rem; font-weight: 500; font-style: italic; color: var(--muted); }
+.mass-when { margin-top: 6px; font-size: 0.88rem; color: var(--rubric); }
+.mass-today { margin-top: 2px; font-size: 0.88rem; color: var(--muted); }
+.mass-today.said { color: var(--lit); font-weight: 600; }
+.mass-about { margin-top: 8px; color: var(--muted); font-size: 0.96rem; line-height: 1.5; }
+.mass-lines { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 4px; }
+.mass-row { padding: 7px 0; }
+.mass-line { display: grid; grid-template-columns: 4.2em 1fr; gap: 10px; align-items: baseline; }
+.mass-who { font-family: var(--sans); font-size: 0.74rem; font-weight: 650; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted); }
+.mass-line.ours .mass-who { color: var(--rubric); }
+.mass-words { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mass-text, .mass-la { font-family: var(--serif); font-size: 1.1rem; line-height: 1.45; }
+.mass-line.ours .mass-text, .mass-line.ours .mass-la { font-weight: 600; }
+.mass-line.cue .mass-text { font-weight: 400; font-style: italic; }
+.mass-line.cue.ours .mass-text { font-weight: 600; font-style: normal; }
+.mass-en { font-family: var(--serif); font-size: 1rem; line-height: 1.45; color: var(--muted); }
+.mass-la + .mass-en { margin-top: 1px; }
+.mass-line.strong .mass-la, .mass-line.strong .mass-en { font-weight: 650; letter-spacing: 0.02em; color: var(--ink); }
+.mass-alt { font-family: var(--serif); font-style: italic; color: var(--muted); }
+.mass-note { font-family: var(--sans); font-size: 0.84rem; color: var(--muted); }
+.mass-rubric { padding: 6px 0 2px; font-size: 0.86rem; line-height: 1.45; color: var(--rubric); }
+.mass-proper { margin: 8px 0; padding: 10px 14px; border-radius: var(--radius-small); background: var(--soft); font-size: 0.92rem; }
+.mass-more { margin-top: 4px; }
+.mass-more > summary { min-height: 44px; display: list-item; padding: 10px 0; font-family: var(--sans); font-size: 0.86rem; font-weight: 600; color: var(--lit); cursor: pointer; }
+.mass-more-body { padding: 4px 0 8px; }
+.mass-more-body p + p { margin-top: 8px; }
+.mass-proper .mass-more > summary { font-weight: 600; }
+
+/* ---------- First opening ---------- */
+
+.welcome-card p + p { margin-top: 8px; }
+
+/* ---------- The update banner ---------- */
+
+/* At the foot of the screen, clear of the Back button and the page title; it
+   can be put off with Later. */
+.update-banner {
+  top: auto;
+  bottom: calc(env(safe-area-inset-bottom) + var(--tabbar-height) + 14px);
+  flex-wrap: wrap;
+}
+body.has-step-bar .update-banner, body.has-action-bar .update-banner {
+  bottom: calc(env(safe-area-inset-bottom) + var(--tabbar-height) + 96px);
+}
+.update-banner > span:first-child { flex: 1; min-width: 150px; }
+.update-actions { display: flex; gap: 8px; margin-left: auto; }
+/* A message shown while the banner is up sits above it, not under it. */
+body:has(.update-banner) .toast { bottom: calc(env(safe-area-inset-bottom) + var(--tabbar-height) + 96px); }
+.mass-aside { font-family: var(--sans); font-size: 0.82rem; font-style: normal; color: var(--rubric); }
+.mass-aside::before { content: "("; }
+.mass-aside::after { content: ")"; }

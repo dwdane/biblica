@@ -7,7 +7,7 @@
 // so their form must never change.
 
 // Each book is one file: this prefix, the book's id, then ".json".
-const TEXT_PREFIX = 'drb-';
+export const TEXT_PREFIX = 'drb-';
 
 let index = null; // parsed data-books.json
 let byId = new Map();
@@ -73,6 +73,34 @@ export async function loadAllBooks(onProgress) {
     await loadBook(entry.id);
     done += 1;
     if (onProgress) onProgress(done, all.length);
+  }
+  await saveLoadedBooks();
+}
+
+/**
+ * Make sure every book in memory is also in the offline cache. A book read
+ * before the service worker took charge, as happens on a first visit, was
+ * fetched past it and never saved; fetching it once more puts that right.
+ */
+export async function saveLoadedBooks() {
+  await saveForOffline([...loaded.keys()].map((id) => `${TEXT_PREFIX}${id}.json`));
+}
+
+/** How many books of the Bible are in the offline cache, or null where the browser cannot say. */
+export async function savedBookCount() {
+  if (!('caches' in window)) return null;
+  const found = await Promise.all(books().map((entry) => caches.match(`${TEXT_PREFIX}${entry.id}.json`, { ignoreSearch: true })));
+  return found.filter(Boolean).length;
+}
+
+/** Fetch, through the service worker, whichever of these files the offline cache lacks. */
+export async function saveForOffline(paths) {
+  if (!('caches' in window) || !navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+  for (const path of paths) {
+    if (await caches.match(path, { ignoreSearch: true })) continue;
+    const response = await fetch(path);
+    // Reading to the end makes sure the whole file arrived.
+    await response.arrayBuffer();
   }
 }
 

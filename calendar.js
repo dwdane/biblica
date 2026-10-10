@@ -552,7 +552,9 @@ export function liturgicalDay(iso, sanctoral = [], options = DEFAULT_OPTIONS) {
 
   const isLentFriday = weekday === 5 && (temporal.season === 'lent' || temporal.season === 'holy-week');
   const fast = dn === L.ashWednesday || dn === L.easter - 2;
-  const abstinence = fast || isLentFriday;
+  // A solemnity that falls on a Friday lifts the abstinence (canon 1251): Saint Joseph
+  // or the Annunciation in Lent. Good Friday is a fast day and keeps it.
+  const abstinence = fast || (isLentFriday && celebration.type !== 'solemnity');
 
   return {
     date: iso,
@@ -576,22 +578,32 @@ export function liturgicalDay(iso, sanctoral = [], options = DEFAULT_OPTIONS) {
     readingKeys,
     fast,
     abstinence,
-    holyDay: holyDayOfObligation({ month, day, weekday, dn, L, opts }),
+    ...obligation({ month, day, weekday, dn, L, opts }),
   };
 }
 
 /**
- * Holy days of obligation. Only the United States list is known to the app;
- * elsewhere the bishops' conference decides and the app stays silent.
+ * Whether Mass is of obligation on a day.
+ *
+ * `holyDay` is true for a holy day of obligation that is not a Sunday.
+ * `obligationLifted` is true for a holy day whose obligation is lifted this
+ * year. `obligationKnown` is false where the app cannot say: only the United
+ * States list is known to it, and elsewhere the bishops' conference decides.
  */
-function holyDayOfObligation({ month, day, weekday, dn, L, opts }) {
-  if (opts.region !== 'us') return false;
-  if (weekday === 0) return false; // Sundays are of obligation already
-  if (month === 12 && (day === 25 || day === 8)) return true;
-  if (!opts.ascensionOnSunday && dn === L.ascension) return true;
+function obligation({ month, day, weekday, dn, L, opts }) {
+  const known = opts.region === 'us';
+  const none = { holyDay: false, obligationLifted: false, obligationKnown: known };
+  if (!known || weekday === 0) return none; // Sundays are of obligation everywhere
+  if (month === 12 && day === 25) return { ...none, holyDay: true };
+  if (month === 12 && day === 8) return { ...none, holyDay: true };
+  // When 8 December is a Sunday the solemnity moves to the 9th, and the obligation moves with it.
+  if (month === 12 && day === 9 && weekday === 1) return { ...none, holyDay: true };
+  if (!opts.ascensionOnSunday && dn === L.ascension) return { ...none, holyDay: true };
   // These three lose the obligation when they fall on a Saturday or a Monday.
   const movable = (month === 1 && day === 1) || (month === 8 && day === 15) || (month === 11 && day === 1);
-  return movable && weekday !== 6 && weekday !== 1;
+  if (!movable) return none;
+  const lifted = weekday === 6 || weekday === 1;
+  return { ...none, holyDay: !lifted, obligationLifted: lifted };
 }
 
 /**

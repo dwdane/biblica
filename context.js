@@ -19,6 +19,12 @@ export async function loadLiturgy() {
   data.lectionary = lectionary;
 }
 
+/** The fixed celebrations of the calendar in use: [{ k, m, d, g, n, c }]. */
+export function calendarEntries() {
+  const options = calendarOptions();
+  return data.calendar ? data.calendar[options.region === 'us' ? 'us' : 'general'] : [];
+}
+
 /** Today in the device's time zone. Read fresh each time: the app may stay open past midnight. */
 export function today() {
   return todayIso();

@@ -1,25 +1,37 @@
 // app.js
 // Start-up, navigation between screens, theming and the service worker.
 
-import { loadBook, loadIndex } from './bible.js';
+import { loadBook, loadIndex, saveLoadedBooks } from './bible.js';
 import { dayFor, loadLiturgy, noteScreenShown, today } from './context.js';
-import { loadSettings, requestPersistence, settings } from './db.js';
+import { loadDays } from './days.js';
+import { loadSettings, requestPersistence, saveSetting, settings } from './db.js';
 import { loadPrayers, scriptureBooks } from './prayers.js';
-import { clear, el, icon } from './ui.js';
+import { saveLoadedStudy } from './study.js';
+import { clear, el, icon, showFlash, toast } from './ui.js';
+import { compareVersions, placeBeforeRestart, reinstallApp, restartBetweenScreens, watchForUpdates } from './updates.js';
+import { APP_VERSION } from './version.js';
+import * as aboutView from './view-about.js';
 import * as confessionView from './view-confession.js';
 import * as dailyView from './view-daily.js';
+import * as dayView from './view-day.js';
 import * as devotionView from './view-devotion.js';
 import * as guidedView from './view-guided.js';
 import * as intentionsView from './view-intentions.js';
+import * as journalView from './view-journal.js';
 import * as libraryView from './view-library.js';
+import * as massView from './view-mass.js';
 import * as notesView from './view-notes.js';
 import * as novenasView from './view-novenas.js';
+import * as officeView from './view-office.js';
 import * as passageView from './view-passage.js';
 import * as plansView from './view-plans.js';
 import * as prayView from './view-pray.js';
 import * as readerView from './view-reader.js';
+import * as reflectionView from './view-reflection.js';
+import * as saintsView from './view-saints.js';
 import * as searchView from './view-search.js';
 import * as settingsView from './view-settings.js';
+import * as studyView from './view-study.js';
 import * as todayView from './view-today.js';
 
 const TABS = [
@@ -65,6 +77,16 @@ function resolve(hash) {
         keepScroll: Boolean(verse),
       };
     }
+    case 'day':
+      return { tab: 'today', view: dayView.render, params: { date: a } };
+    case 'study':
+      return { tab: 'bible', view: studyView.render, params: { bookId: a, chapter: b, verses: c } };
+    case 'reflection':
+      return { tab: 'notes', view: reflectionView.render, params: { id: a, start: b, end: c } };
+    case 'journal':
+      return a
+        ? { tab: 'notes', view: journalView.renderEntry, params: { date: a } }
+        : { tab: 'notes', view: journalView.renderJournal, params: {} };
     case 'reading':
       return { tab: 'today', view: passageView.renderReading, params: { date: a, index: b, mass: c } };
     case 'plans':
@@ -83,6 +105,12 @@ function resolve(hash) {
       return { tab: 'notes', view: notesView.render, params: {} };
     case 'settings':
       return { tab: 'today', view: settingsView.render, params: {} };
+    case 'mass':
+      return { tab: 'pray', view: massView.render, params: { form: a } };
+    case 'about':
+      return a === 'news'
+        ? { tab: 'today', view: aboutView.renderNews, params: {} }
+        : { tab: 'today', view: aboutView.renderPage, params: { page: a } };
     default:
       return { tab: 'today', view: todayView.render, params: {} };
   }
@@ -114,6 +142,14 @@ function resolvePray(section, a, b, c) {
       return { tab, view: intentionsView.renderIntentions, params: {} };
     case 'confession':
       return { tab, view: confessionView.renderConfession, params: {} };
+    case 'guide':
+      return { tab, view: guidedView.renderGuide, params: { id: a } };
+    case 'office':
+      return { tab, view: officeView.render, params: {} };
+    case 'saints':
+      return { tab, view: saintsView.renderSaints, params: {} };
+    case 'saint':
+      return { tab, view: saintsView.renderSaint, params: { id: a } };
     default:
       return { tab, view: prayView.render, params: {} };
   }
@@ -146,20 +182,42 @@ function applyTheme() {
 
 // Counts every call to route(), so a slow screen can tell it has been overtaken.
 let latestVisit = 0;
+// The last screen's leave-taking, while it is still under way.
+let leaving = null;
+// True until the first screen of this start has been drawn.
+let firstScreen = true;
 
 async function route() {
-  const hash = window.location.hash || '#/today';
+  const visit = (latestVisit += 1);
   if (currentHash !== null) scrollPositions.set(currentHash, window.scrollY);
   if (cleanup) {
-    cleanup();
+    // A screen with something half-written saves it as it goes; the next screen
+    // waits for that, so that it lists what was just written. Not for ever: a
+    // save that hangs must not hold the reader on the old screen.
+    const leave = cleanup;
     cleanup = null;
+    leaving = Promise.race([
+      Promise.resolve().then(leave).catch((error) => console.warn(error)).then(() => true),
+      new Promise((resolve) => { setTimeout(() => resolve(false), 1500); }),
+    ]);
   }
+  let saved = true;
+  if (leaving) {
+    saved = await leaving;
+    // The reader moved on again during the wait: that later visit does the drawing.
+    if (visit !== latestVisit) return;
+    leaving = null;
+  }
+  // Between two screens, with the last one's work saved, is the moment a waiting update is
+  // applied. Not if that work is still being saved: a restart would cut it off.
+  const destination = window.location.hash || '#/today';
+  if (saved && currentHash !== null && destination !== currentHash && restartBetweenScreens(destination)) return;
+  const hash = window.location.hash || '#/today';
   // Drawing the same screen again (after a change, or at midnight) is not a
   // step in the reader's history, so it does not count towards "Back".
   if (hash !== currentHash) noteScreenShown();
   currentHash = hash;
   renderedOn = today();
-  const visit = (latestVisit += 1);
   // Whatever the last screen added to the page frame goes, even if it failed
   // before it could hand back its own clean-up.
   document.body.classList.remove('has-step-bar', 'has-action-bar');
@@ -184,34 +242,16 @@ async function route() {
         el('button', { class: 'button', onclick: route }, 'Try again')));
   }
   clear(screen).append(fresh);
-  if (!target.keepScroll) window.scrollTo(0, scrollPositions.get(hash) || 0);
-}
-
-function registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
-  window.addEventListener('load', async () => {
-    try {
-      const registration = await navigator.serviceWorker.register('sw.js');
-      registration.update().catch(() => {});
-      setInterval(() => registration.update().catch(() => {}), 60 * 60 * 1000);
-
-      const hadController = Boolean(navigator.serviceWorker.controller);
-      let shown = false;
-      const offerRefresh = () => {
-        if (shown) return;
-        shown = true;
-        document.body.append(el('div', { class: 'update-banner', role: 'status' },
-          el('span', { text: 'A new version of Biblica is ready.' }),
-          el('button', { class: 'button', onclick: () => window.location.reload() }, 'Refresh')));
-      };
-      // A new worker taking over a page that already had one means an update landed.
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (hadController) offerRefresh();
-      });
-    } catch (error) {
-      console.warn('Service worker registration failed', error);
+  if (firstScreen) {
+    // Restarted for an update: back to where the reader was.
+    firstScreen = false;
+    const place = placeBeforeRestart(window.location.hash);
+    if (place !== null) {
+      window.scrollTo(0, place);
+      return;
     }
-  });
+  }
+  if (!target.keepScroll) window.scrollTo(0, scrollPositions.get(hash) || 0);
 }
 
 async function start() {
@@ -220,13 +260,16 @@ async function start() {
   screen.append(el('p', { class: 'loading', text: 'Opening…' }));
   try {
     await loadSettings();
-    await Promise.all([loadIndex(), loadLiturgy(), loadPrayers()]);
+    await Promise.all([loadIndex(), loadLiturgy(), loadPrayers(), loadDays()]);
   } catch (error) {
     console.error(error);
     clear(screen).append(el('section', { class: 'card' },
       el('h2', { class: 'card-heading', text: 'Biblica could not start' }),
       el('p', { class: 'muted', text: 'The app’s data could not be loaded. Check your connection and open it again.' }),
-      el('button', { class: 'button', onclick: () => window.location.reload() }, 'Try again')));
+      el('div', { class: 'button-row' },
+        el('button', { class: 'button', onclick: () => window.location.reload() }, 'Try again'),
+        el('button', { class: 'button quiet', onclick: fetchAfresh }, 'Fetch the app afresh')),
+      el('p', { class: 'muted small', text: 'Fetching afresh brings every file of the app from the site again. Nothing you have written is touched.' })));
     return;
   }
   applyTheme();
@@ -237,13 +280,38 @@ async function start() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && renderedOn !== today()) {
       applyTheme();
-      // Someone praying across midnight keeps their place; the screen
-      // catches up with the date when they leave it.
-      if (!document.body.classList.contains('has-step-bar')) route();
+      // Someone praying, writing or following the Mass across midnight keeps
+      // their place; the screen catches up with the date when they leave it.
+      const writing = ['TEXTAREA', 'INPUT'].includes(document.activeElement && document.activeElement.tagName);
+      const atMass = window.location.hash.startsWith('#/mass');
+      if (!document.body.classList.contains('has-step-bar') && !writing && !atMass) route();
     }
   });
   warmScripture();
   await route();
+  showFlash();
+  noteVersion();
+}
+
+/** From the card shown when the app could not start: fetch its files again, and say if that failed. */
+async function fetchAfresh(event) {
+  const button = event.currentTarget;
+  button.disabled = true;
+  button.textContent = 'Fetching…';
+  const result = await reinstallApp().catch(() => ({ kind: 'offline' }));
+  if (result.kind === 'restarting') return;
+  button.disabled = false;
+  button.textContent = result.kind === 'failed'
+    ? 'The site’s copy is incomplete. Try later'
+    : 'The site could not be reached. Try again';
+}
+
+/** Say so, once, when the app has come back as a newer release. */
+function noteVersion() {
+  const seen = settings().seenVersion;
+  if (seen === APP_VERSION) return;
+  if (seen && compareVersions(APP_VERSION, seen) > 0) toast(`Biblica has been updated to version ${APP_VERSION}.`);
+  saveSetting('seenVersion', APP_VERSION).catch(() => {});
 }
 
 /**
@@ -262,12 +330,14 @@ function warmScripture() {
         setTimeout(resolve, 20000);
       });
     }
-    for (const id of scriptureBooks()) {
-      try {
-        await loadBook(id);
-      } catch {
-        return; // offline or interrupted; it will be tried again next time
-      }
+    try {
+      // Whatever was read before the worker took charge went past it; save that first.
+      await saveLoadedBooks();
+      await saveLoadedStudy();
+      for (const id of scriptureBooks()) await loadBook(id);
+      await saveLoadedBooks();
+    } catch {
+      // Offline or interrupted; it will be tried again next time.
     }
   };
   if ('requestIdleCallback' in window) window.requestIdleCallback(fetchAll, { timeout: 8000 });
@@ -280,5 +350,5 @@ window.addEventListener('biblica:blocked', () => {
   if (waiting) waiting.textContent = 'Biblica is open in another tab or window. Close it and this one will finish updating.';
 });
 
-registerServiceWorker();
+watchForUpdates();
 start();

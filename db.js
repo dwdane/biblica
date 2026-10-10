@@ -1,15 +1,17 @@
 // db.js
 // Everything the reader creates lives here, in IndexedDB on this device:
 // settings, highlights, notes, links between verses, reading progress, the
-// daily prayer list and its log, novenas, intentions and the reader's own
-// prayers. No other module touches IndexedDB directly.
+// daily prayer list and its log, novenas, intentions, the reader's own
+// prayers, reflections, the journal and patron saints. No other module
+// touches IndexedDB directly.
 
 const DB_NAME = 'biblica';
 
 // Version history:
 //   1  settings, highlights, notes, links, plans, readings (release 0.1)
 //   2  practices, practiceLog, novenas, intentions, ownPrayers, conscience (release 0.2)
-const DB_VERSION = 2;
+//   3  reflections, journal, patrons (release 0.3)
+const DB_VERSION = 3;
 
 // Object stores and their key paths. Adding a store means raising DB_VERSION;
 // the upgrade below creates whatever is missing and never touches what exists.
@@ -26,10 +28,18 @@ const STORES = {
   intentions: { keyPath: 'id', autoIncrement: true },
   ownPrayers: { keyPath: 'id', autoIncrement: true },
   conscience: { keyPath: 'id' }, // examination notes; see PRIVATE_STORES
+  reflections: { keyPath: 'id', autoIncrement: true }, // notes on a theme, each citing any number of passages
+  journal: { keyPath: 'id' }, // id is an ISO date; what the reader wrote at the examen or on that day
+  patrons: { keyPath: 'id', autoIncrement: true }, // the reader's own saints
 };
 
 // Stores left out of backups unless the reader asks for them to be included.
 const PRIVATE_STORES = ['conscience'];
+
+// Settings that describe this device and not the reader: when it last made a
+// backup or asked for an update, and which release it last ran. They stay out
+// of backups, and a restore leaves this device's own values as they are.
+const DEVICE_SETTINGS = ['lastBackup', 'updateChecked', 'seenVersion'];
 
 let dbPromise = null;
 
@@ -126,6 +136,19 @@ export const DEFAULT_SETTINGS = {
   favourites: [], // prayer ids kept at the top of the library
   backupPrivate: false, // include examination notes in backups
   devotionProgress: null, // { key, date, step } for resuming a devotion left midway
+  showLatin: false, // show the Vulgate beneath each verse in the reader
+  examenJournal: true, // offer to write in the journal during the examen
+  dailyMarks: true, // show a quiet mark beside what has been prayed today
+  showOnThisDay: true, // the "On this day" card on Today
+  autoUpdate: true, // restart into a new release at the next quiet moment, rather than asking
+  seenVersion: null, // the release this device last started as
+  updateChecked: null, // when Settings last asked the site for an update (ISO time)
+  lastBackup: null, // when a backup was last made on this device (ISO time)
+  welcomed: false, // the reader has seen the note about privacy on first opening
+  massForm: 'ordinary', // which form of the Mass the companion opens on: 'ordinary' or 'traditional'
+  massLanguage: 'both', // the traditional Mass in 'la', 'en' or 'both'
+  massKind: 'low', // postures shown for the traditional Mass: 'low' or 'sung'
+  massWake: true, // keep the screen awake while following the Mass
 };
 
 let settingsCache = null;
@@ -181,6 +204,7 @@ export async function exportBackup(appVersion) {
     if (PRIVATE_STORES.includes(name) && !includePrivate) continue;
     stores[name] = await db.all(name);
   }
+  stores.settings = stores.settings.filter((row) => !DEVICE_SETTINGS.includes(row.key));
   return { format: BACKUP_FORMAT, formatVersion: 1, appVersion, exported: new Date().toISOString(), stores };
 }
 
@@ -222,6 +246,7 @@ export async function importBackup(backup) {
   checkBackup(backup);
   const database = await open();
   const names = Object.keys(STORES);
+  const kept = Object.fromEntries(DEVICE_SETTINGS.map((key) => [key, settings()[key]]));
   const transaction = database.transaction(names, 'readwrite');
   const finished = new Promise((resolve, reject) => {
     transaction.oncomplete = resolve;
@@ -233,7 +258,16 @@ export async function importBackup(backup) {
       if (PRIVATE_STORES.includes(name) && backup.stores[name] === undefined) continue;
       const store = transaction.objectStore(name);
       store.clear();
-      for (const row of backup.stores[name] || []) store.put(row);
+      for (const row of backup.stores[name] || []) {
+        // A backup made by an earlier release may carry another device's bookkeeping.
+        if (name === 'settings' && DEVICE_SETTINGS.includes(row.key)) continue;
+        store.put(row);
+      }
+      if (name === 'settings') {
+        for (const key of DEVICE_SETTINGS) {
+          if (kept[key] !== null && kept[key] !== undefined) store.put({ key, value: kept[key] });
+        }
+      }
     }
   } catch {
     // Undo everything already queued, so the device is left as it was.
@@ -247,6 +281,46 @@ export async function importBackup(backup) {
   const counts = {};
   for (const name of names) counts[name] = (backup.stores[name] || []).length;
   return counts;
+}
+
+/** Roughly how many bytes everything the reader has written takes up, counted as a backup would hold it. */
+export async function writtenBytes() {
+  let total = 0;
+  for (const name of Object.keys(STORES)) {
+    total += new Blob([JSON.stringify(await db.all(name))]).size;
+  }
+  return total;
+}
+
+/**
+ * Remove everything the reader has written, and every setting, from this
+ * device, private stores included. The app's own files are left alone.
+ */
+export async function eraseEverything() {
+  const database = await open();
+  const names = Object.keys(STORES);
+  const transaction = database.transaction(names, 'readwrite');
+  const finished = new Promise((resolve, reject) => {
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error || new Error('Nothing was erased.'));
+  });
+  for (const name of names) transaction.objectStore(name).clear();
+  await finished;
+  settingsCache = null;
+  await loadSettings();
+}
+
+/** Whether the browser has agreed not to clear this app's storage by itself; null where it cannot say. */
+export async function storageProtected() {
+  if (navigator.storage && navigator.storage.persisted) {
+    try {
+      return await navigator.storage.persisted();
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 /** Ask the browser not to evict this app's data when the device runs low on space. */

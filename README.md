@@ -1,14 +1,48 @@
-# Biblica 0.2.0
+# Biblica 0.4.0
 
-A Catholic Bible and daily prayer companion that installs to the home screen and works offline.
-Nothing leaves the device: there are no accounts, servers or analytics.
+A Catholic Bible and daily prayer companion that installs to the home screen and works offline:
+the Douay-Rheims Bible, the readings of the day, a daily prayer list, the Rosary and other
+devotions, a Mass companion, and the commentary of the Fathers of the Church.
+
+**Private by design.** Everything a reader writes stays on their own device. There are no
+accounts, no servers, no analytics, no advertising and no tracking, and the app is forbidden by
+its own content security policy from contacting any site but this one. See
+[PRIVACY.md](PRIVACY.md).
+
+**Free.** The code is under the [MIT licence](LICENSE). The texts are in the public domain or
+openly licensed, except a few short excerpts from the current English Missal, used with the notice
+their owner asks for; [NOTICES.md](NOTICES.md) gives the credits. The [terms of use](TERMS.md)
+say what the app is and is not: it is not an official book of the Church. What each release
+changed is in [RELEASES.md](RELEASES.md).
+
+## These files
 
 This is the flat copy of the app, made for uploading to GitHub from a phone: every file sits at
 the top level. It is generated from the project's folders by `uv run biblica-flat`; change the
-source there, not here.
+source there, not here. Do not edit these files on GitHub either: each release records a
+fingerprint of every file, and installed copies refuse a release whose files do not match.
 
-- 42 files are the app. Replace them all for every release.
-- 73 files named `drb-*.json` are the Bible text. They change rarely.
+- 73 files are the app and its papers. Replace them all for every release.
+- 73 files named `drb-*.json` are the Bible text.
+- 73 files named `study-*.json` are the Latin and the cross-references.
+- 68 files named `fathers-*.json` are the commentary of the Fathers.
 
-To publish: put every file in the root of a public repository and turn on GitHub Pages for the
-`main` branch, root folder.
+The last three kinds change rarely; the release notes say when they do.
+
+## Publishing and updating
+
+Put every file in the root of a public repository and turn on GitHub Pages for the `main`
+branch, root folder.
+
+Once, on GitHub's website, add an empty file named `.nojekyll` (Add file, Create new file), so
+that GitHub publishes the files as they are instead of running them through its site builder.
+
+After uploading a release, open `check.html` on the published site (for example
+`https://your-name.github.io/your-repository/check.html`). It lists any file that is missing or
+left over from an earlier release. An incomplete upload is never installed: readers stay on the
+release they have until it is whole.
+
+Installed copies look for a new release when the app is opened or brought back into view (at
+most once in five minutes), and apply it by themselves at a quiet moment. Settings, Updates,
+Check for updates does it at once. GitHub Pages can take about ten minutes to hand out a new
+upload.

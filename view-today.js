@@ -6,7 +6,9 @@
 import { addDays, weekOf } from './calendar.js';
 import { book, chapterTitle, formatSpan, verseText, verseId } from './bible.js';
 import { dayFor, go, longDate, readingsOn, today, typeLabel } from './context.js';
-import { db, settings } from './db.js';
+import { eventsOn, kindName, obligationFor } from './days.js';
+import { db, saveSetting, settings } from './db.js';
+import { patronsOn, roleLabel } from './patrons.js';
 import { allProgress, doneCount, loadPlans, nextDay } from './plans.js';
 import { add, el, icon } from './ui.js';
 import { dailyCard } from './view-daily.js';
@@ -22,25 +24,50 @@ export async function render(container, { date }) {
     el('header', { class: 'app-header' },
       el('h1', { class: 'app-title', text: 'Biblica' }),
       el('button', { class: 'icon-button', 'aria-label': 'Settings', onclick: () => go('#/settings') }, icon('settings', 24))),
+    welcomeCard(),
     hero(day, iso, current),
     weekStrip(iso, current),
+    await patronCard(day),
     await dailyCard(iso),
     await readingsCard(iso, day, readings, masses, title, approximate),
+    settings().showOnThisDay !== false ? historyCard(iso) : null,
     await continueCard(),
     await plansCard(),
   );
+}
+
+/**
+ * Shown once, the first time the app is opened: what happens to what the
+ * reader writes. Said at the start, not left for Settings.
+ */
+function welcomeCard() {
+  if (settings().welcomed) return null;
+  const card = el('section', { class: 'card welcome-card' });
+  const seen = async () => {
+    await saveSetting('welcomed', true);
+    card.remove();
+  };
+  return add(card,
+    el('h3', { class: 'card-heading', text: 'Yours alone' }),
+    el('p', { text: 'Everything you write in Biblica stays on this device. There is no account, and nothing is sent anywhere: nobody else can read it.' }),
+    el('p', { class: 'muted', text: 'That also means nobody else can recover it, so make a backup now and then in Settings.' }),
+    el('div', { class: 'button-row' },
+      el('button', { class: 'button quiet', onclick: async () => { await seen(); go('#/about/privacy'); } }, 'How privacy works'),
+      el('button', { class: 'button', onclick: seen }, 'Understood')));
 }
 
 function hero(day, iso, current) {
   const rank = typeLabel(day.celebration.type);
   const counted = ['ordinary', 'advent', 'lent', 'easter'].includes(day.season) && day.week > 0;
   const seasonLine = counted ? `${day.seasonName}, week ${day.week}` : day.seasonName;
+  const obligation = obligationFor(day);
   const observances = [];
-  if (day.holyDay) observances.push('Holy day of obligation');
+  if (obligation.short) observances.push(obligation.short);
   if (day.fast) observances.push('Day of fasting and abstinence');
   else if (day.abstinence) observances.push('Day of abstinence from meat');
 
-  return el('section', { class: 'card hero', dataset: { lit: day.color } },
+  // The whole banner opens the page about the day.
+  return el('a', { class: `card hero${obligation.obliged ? ' obliged' : ''}`, dataset: { lit: day.color }, href: `#/day/${iso}` },
     el('span', { class: 'ribbon', 'aria-hidden': 'true' }),
     el('p', { class: 'hero-date', text: iso === current ? `Today, ${longDate(iso, day.weekdayName).split(', ')[1]}` : longDate(iso, day.weekdayName) }),
     el('h2', { class: 'hero-name', text: day.celebration.name }),
@@ -54,7 +81,35 @@ function hero(day, iso, current) {
       ? el('p', { class: 'hero-sub', text: `Also today: ${day.commemorations.map((item) => item.name).join('; ')}` })
       : null,
     observances.length ? el('p', { class: 'hero-observance', text: observances.join('. ') }) : null,
+    el('span', { class: 'hero-more', 'aria-hidden': 'true' }, 'About this day', icon('forward', 16)),
   );
+}
+
+/** A note when the day is the feast of one of the reader's own saints. */
+async function patronCard(day) {
+  const mine = await patronsOn(day, dayFor);
+  if (!mine.length) return null;
+  return el('section', { class: 'card patron-card' },
+    mine.map((item) => el('button', { class: 'row-button', onclick: () => go(`#/pray/saint/${item.id}`) },
+      el('span', { class: 'row-text' },
+        el('span', { class: 'row-title', text: `The feast of ${item.name}` }),
+        el('span', { class: 'row-sub', text: roleLabel(item.role) || 'One of your saints' })),
+      icon('forward', 18))));
+}
+
+/** One or two things that happened on this date, with the rest on the day's page. */
+function historyCard(iso) {
+  const events = eventsOn(iso);
+  if (!events.length) return null;
+  // Lead with the event most worth knowing: an apparition, council or miracle before a death date.
+  const weight = { apparition: 0, miracle: 0, council: 1, scripture: 1, document: 2, mission: 2, church: 2, martyr: 3, pope: 3, saint: 3 };
+  const lead = [...events].sort((a, b) => (weight[a.k] ?? 3) - (weight[b.k] ?? 3) || a.y - b.y)[0];
+  return el('button', { class: 'card card-button history-card', onclick: () => go(`#/day/${iso}`) },
+    el('span', { class: 'card-heading plain', text: 'On this day' }),
+    el('span', { class: 'event-head' }, el('span', { class: 'event-year', text: lead.y }), el('span', { class: 'event-kind', text: kindName(lead.k) })),
+    el('span', { class: 'event-title', text: lead.t }),
+    el('span', { class: 'event-text', text: lead.x }),
+    events.length > 1 ? el('span', { class: 'muted small', text: `and ${events.length - 1} more` }) : null);
 }
 
 function weekStrip(iso, current) {
@@ -63,9 +118,10 @@ function weekStrip(iso, current) {
   for (const dayIso of days) {
     const info = dayFor(dayIso);
     const dayNumber = Number(dayIso.slice(8));
+    const obliged = obligationFor(info).obliged;
     strip.append(el('button', {
-      class: `week-day${dayIso === iso ? ' selected' : ''}${dayIso === current ? ' is-today' : ''}`,
-      'aria-label': `${longDate(dayIso, info.weekdayName)}: ${info.celebration.name}`,
+      class: `week-day${dayIso === iso ? ' selected' : ''}${dayIso === current ? ' is-today' : ''}${obliged ? ' obliged' : ''}`,
+      'aria-label': `${longDate(dayIso, info.weekdayName)}: ${info.celebration.name}${obliged ? '. Mass is of obligation' : ''}`,
       'aria-pressed': dayIso === iso ? 'true' : 'false',
       onclick: () => go(dayIso === current ? '#/today' : `#/today/${dayIso}`),
     },
@@ -98,7 +154,8 @@ async function readingsCard(iso, day, readings, masses, title, approximate) {
           el('span', { class: 'reading-label', text: reading.label }),
           el('span', { class: 'reading-cite', text: reading.citation }),
           el('span', { class: 'reading-preview', text: previews[index] })),
-        el('span', { class: 'reading-check', 'aria-label': done ? 'Read' : 'Not yet read' }, done ? icon('check', 20) : null))));
+        // No empty ring waiting to be filled: a quiet tick once the reading has been read.
+        done ? el('span', { class: 'reading-check', role: 'img', 'aria-label': 'Read' }, icon('check', 20)) : null)));
   });
   add(card, list);
   if (masses.length) {
@@ -107,6 +164,8 @@ async function readingsCard(iso, day, readings, masses, title, approximate) {
   if (approximate) {
     add(card, el('p', { class: 'muted small', text: 'These citations come from the Latin lectionary, so a verse or two at either end may differ from your missal.' }));
   }
+  add(card, el('div', { class: 'daily-footer' },
+    el('button', { class: 'text-button', onclick: () => go('#/mass') }, 'Follow the Mass')));
   return card;
 }
 

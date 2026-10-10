@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<!-- check.html
+     A page for whoever publishes this copy of Biblica: it reads the list of
+     files the app is made of and checks that every one is really on the site.
+     Open it in a browser after uploading a release. It stands alone (no other
+     file of the app is needed for it to run) and the app never caches it. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" />
+  <title>Biblica: check this upload</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0 auto; max-width: 620px; padding: 20px 16px 60px; }
+    h1 { font-size: 1.4rem; margin: 0 0 4px; }
+    h2 { font-size: 1.05rem; margin: 28px 0 6px; }
+    p { margin: 6px 0; }
+    .muted { opacity: 0.7; font-size: 0.92rem; }
+    .ok { color: #1c7a3d; font-weight: 600; }
+    .bad { color: #b3261e; font-weight: 600; }
+    ul { margin: 6px 0; padding-left: 22px; }
+    li { overflow-wrap: anywhere; }
+    button { font: inherit; padding: 10px 16px; border-radius: 10px; border: 1px solid currentColor; background: none; color: inherit; margin-top: 8px; }
+    @media (prefers-color-scheme: dark) { .ok { color: #6fd08c; } .bad { color: #ff8a80; } }
+  </style>
+</head>
+<body>
+  <h1>Biblica: check this upload</h1>
+  <p class="muted">This page looks at the files published at this address and says whether a release is complete. It changes nothing unless you press a button.</p>
+
+  <h2>The app</h2>
+  <div id="app"><p>Checking…</p></div>
+
+  <h2>The Bible and study files</h2>
+  <div id="text"><p>Checking…</p></div>
+
+  <h2>This browser</h2>
+  <div id="device"><p>Checking…</p></div>
+
+  <script>
+    const show = (id, ...nodes) => { const box = document.getElementById(id); box.textContent = ''; box.append(...nodes); };
+    const line = (text, cls) => { const p = document.createElement('p'); p.textContent = text; if (cls) p.className = cls; return p; };
+    const list = (items) => { const ul = document.createElement('ul'); for (const item of items) { const li = document.createElement('li'); li.textContent = item; ul.append(li); } return ul; };
+    const fresh = { cache: 'no-store' };
+    const live = (path) => `${path}${path.includes('?') ? '&' : '?'}live=${Date.now()}`;
+    const count = (number, one, many) => `${number} ${number === 1 ? one : many}`;
+
+    // Whether everything about the app's own files checked out: the button below is offered only then.
+    let appComplete = false;
+
+    /** The first sixteen hex digits of a file's SHA-256, as sw.js records them; null where the browser cannot compute it. */
+    async function fingerprint(buffer) {
+      if (!window.crypto || !window.crypto.subtle) return null;
+      const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', buffer));
+      return [...hash.slice(0, 8)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    /** Run a check over many files, a few at a time. */
+    async function each(paths, work) {
+      const queue = [...paths];
+      const worker = async () => { while (queue.length) await work(queue.shift()); };
+      await Promise.all(Array.from({ length: 6 }, worker));
+    }
+
+    async function checkApp() {
+      let source;
+      try {
+        const response = await fetch(live('sw.js'), fresh);
+        if (!response.ok) throw new Error(String(response.status));
+        source = await response.text();
+      } catch (error) {
+        show('app', line(`sw.js could not be fetched (${error.message}). Is this page in the same folder as the app, and are you online?`, 'bad'));
+        return null;
+      }
+      const version = (/const VERSION = '([^']+)'/.exec(source) || [])[1] || null;
+      const start = source.indexOf('const SHELL = [');
+      const listed = start < 0 ? [] : [...source.slice(start, source.indexOf('];', start)).matchAll(/'\.\/([^']*)'/g)].map((match) => match[1] || 'index.html');
+      const wanted = [...new Set(listed)];
+      if (!version || !wanted.length) {
+        show('app', line('sw.js is on the site but does not look like Biblica’s: it names no version or lists no files. Upload the release’s own sw.js again.', 'bad'));
+        return null;
+      }
+      // The fingerprint of each file as this release was built, from the stamp in sw.js.
+      const stamp = (/\/\/ <stamp>([\s\S]*?)\/\/ <\/stamp>/.exec(source) || [])[1] || '';
+      const digests = Object.fromEntries([...stamp.matchAll(/'([^']+)': '([0-9a-f]+)'/g)].map((match) => [match[1], match[2]]));
+      const stamped = Object.keys(digests).length > 0;
+
+      const missing = [];
+      const stale = [];
+      let compared = stamped;
+      await each(wanted, async (path) => {
+        try {
+          const response = await fetch(live(path), fresh);
+          if (!response.ok) { missing.push(`${path} (${response.status})`); return; }
+          if (!digests[path]) return;
+          const found = await fingerprint(await response.arrayBuffer());
+          if (found === null) compared = false;
+          else if (found !== digests[path]) stale.push(path);
+        } catch {
+          missing.push(`${path} (no answer)`);
+        }
+      });
+      missing.sort();
+      stale.sort();
+
+      const nodes = [
+        line(`The published release is ${version}.`),
+        line('If you have just uploaded a newer one, the site has not published it yet: reload this page in a few minutes. If it stays this way on GitHub, look in the repository’s Actions tab for a “pages build and deployment” that failed.', 'muted'),
+      ];
+      // sw.js and the rest of the app are uploaded together; if they name different releases, one was left behind.
+      const versionFile = wanted.find((path) => path.endsWith('version.js'));
+      let others = null;
+      try {
+        if (versionFile) others = (/APP_VERSION = '([^']+)'/.exec(await (await fetch(live(versionFile), fresh)).text()) || [])[1] || null;
+      } catch {
+        // Reported with the other files below.
+      }
+      if (others && others !== version) {
+        nodes.push(line(`sw.js is from release ${version}, but the app’s other files say ${others}: the upload replaced one and not the other.`, 'bad'));
+      }
+      if (!missing.length && !stale.length) {
+        appComplete = true;
+        nodes.push(line(compared
+          ? `All ${wanted.length} files of the app are here, and each is this release’s own.`
+          : `All ${wanted.length} files of the app are here.`, 'ok'));
+        if (!compared) nodes.push(line(stamped ? 'This browser could not compare their contents, so only their presence was checked.' : 'This release carries no fingerprints, so only the presence of each file was checked.', 'muted'));
+        nodes.push(line('Installed copies pick this up when they are next brought into view, or at once from Check for updates in Settings (from 0.4.0 on). GitHub Pages can take about ten minutes to hand out a new upload.', 'muted'));
+      } else {
+        if (missing.length) nodes.push(line(`${count(missing.length, 'file is', 'files are')} missing, of the app’s ${wanted.length}.`, 'bad'), list(missing));
+        if (stale.length) {
+          nodes.push(line(`${count(stale.length, 'file is', 'files are')} on the site but not from this release: an older copy the upload did not replace, or one changed since.`, 'bad'), list(stale),
+            line('If you have only just uploaded, GitHub Pages may still be handing out the old copies: reload this page in ten minutes before uploading again.', 'muted'));
+        }
+        nodes.push(line('Until every file is this release’s own, installed copies stay on the release they have. Upload the whole release again.', 'muted'));
+      }
+      show('app', ...nodes);
+      return version;
+    }
+
+    async function checkText() {
+      let books;
+      let fathers;
+      try {
+        books = (await (await fetch(live('data-books.json'), fresh)).json()).books.map((book) => book.id);
+        fathers = (await (await fetch(live('data-fathers.json'), fresh)).json()).books;
+        fathers = Array.isArray(fathers) ? fathers : Object.keys(fathers);
+      } catch {
+        show('text', line('The list of books could not be read, so the text files were not checked.', 'bad'));
+        return;
+      }
+      const kinds = [
+        ['Bible text', books.map((id) => `drb-${id}.json`)],
+        ['Latin and cross-references', books.map((id) => `study-${id}.json`)],
+        ['Commentary of the Fathers', fathers.map((id) => `fathers-${id}.json`)],
+      ];
+      const nodes = [];
+      for (const [name, paths] of kinds) {
+        const missing = [];
+        await each(paths, async (path) => {
+          try {
+            const response = await fetch(live(path), { ...fresh, method: 'HEAD' });
+            if (!response.ok) missing.push(`${path} (${response.status})`);
+          } catch {
+            missing.push(`${path} (no answer)`);
+          }
+        });
+        if (!missing.length) nodes.push(line(`${name}: all ${paths.length} files are here.`, 'ok'));
+        else nodes.push(line(`${name}: ${missing.length} of ${paths.length} files are missing.`, 'bad'), list(missing.sort().slice(0, 40)));
+        show('text', ...nodes, line('Checking…', 'muted'));
+      }
+      nodes.push(line('These files are checked for being there, not for their contents.', 'muted'));
+      show('text', ...nodes);
+    }
+
+    /** Put a question to a worker; resolves to its answer, or null if it gives none in time. */
+    function askWorker(worker, message, patience) {
+      return new Promise((resolve) => {
+        const channel = new MessageChannel();
+        const timer = setTimeout(() => resolve(null), patience);
+        channel.port1.onmessage = (event) => { clearTimeout(timer); resolve(event.data || null); };
+        worker.postMessage(message, [channel.port2]);
+      });
+    }
+
+    /** Wait for a worker that is installing to finish, one way or the other. */
+    function settled(worker) {
+      return new Promise((resolve) => {
+        const look = () => { if (worker.state === 'activated' || worker.state === 'redundant') resolve(worker.state); };
+        worker.addEventListener('statechange', look);
+        look();
+        setTimeout(() => resolve('slow'), 90000);
+      });
+    }
+
+    async function checkDevice(published) {
+      if (!('serviceWorker' in navigator)) {
+        show('device', line('This browser cannot install the app (no service worker support).'));
+        return;
+      }
+      const registration = await navigator.serviceWorker.getRegistration('./');
+      const worker = registration && registration.active;
+      if (!worker) {
+        show('device', line('The app has not been opened in this browser, so there is nothing installed here to update.'),
+          line('An app on an iPhone’s home screen keeps its own copy, apart from the browser’s. That one updates itself when it is opened or brought back into view; from 0.4.0 on, Settings has Check for updates as well.', 'muted'));
+        return;
+      }
+      const answer = (await askWorker(worker, { type: 'biblica:version' }, 3000)) || (await askWorker(worker, { type: 'biblica:version' }, 3000));
+      const version = answer && answer.version;
+      const nodes = [line(version ? `This browser holds release ${version}.` : 'This browser holds a release from before 0.4.0 (it cannot say which).')];
+      if (published && version === published) nodes.push(line('That is the published release.', 'ok'));
+      const note = line('', 'muted');
+      const explain = 'This fetches every file of the app again, replacing the copy held by this browser. Notes, the journal and everything else written in the app are not touched. It does nothing for an app on an iPhone’s home screen, which keeps its own copy apart from the browser’s: that one has the same button in its Settings.';
+      const button = document.createElement('button');
+      button.textContent = 'Fetch the app afresh in this browser';
+      if (!appComplete) {
+        // Never offered over an incomplete upload: the copy this browser has works, and half of another would not.
+        button.disabled = true;
+        note.textContent = 'Not offered while the files above are incomplete: the copy this browser holds still works.';
+      } else {
+        note.textContent = explain;
+      }
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        const stop = (text) => { note.textContent = `Nothing was changed: ${text}`; note.className = 'bad'; };
+        // The site must be reachable now, not only when this page loaded.
+        try {
+          if (!(await fetch(live('sw.js'), fresh)).ok) throw new Error('unreachable');
+        } catch {
+          stop('the site could not be reached.');
+          return;
+        }
+        note.textContent = 'Fetching…';
+        // A newer worker, if the site has one, installs itself and checks every file as it does.
+        await registration.update().catch(() => null);
+        if (registration.installing) {
+          if ((await settled(registration.installing)) !== 'activated') { stop('the new release could not be installed. Reload this page to see why.'); return; }
+        } else if (version) {
+          // The worker fetches its own files again and replaces them only if every one is right.
+          const result = await askWorker(registration.active, { type: 'biblica:refetch' }, 90000);
+          if (!result || !result.ok) { stop('some files could not be fetched. Reload this page to see which.'); return; }
+        } else {
+          // A worker from before 0.4.0 cannot do that. The upload was found complete above,
+          // so it is removed with its files and the app installs itself anew from the site.
+          await registration.unregister();
+          for (const key of await caches.keys()) if (key.startsWith('biblica-shell-')) await caches.delete(key);
+        }
+        window.location.href = './';
+      });
+      nodes.push(button, note);
+      show('device', ...nodes);
+    }
+
+    /**
+     * Whether this page can see the site itself. A copy of the app from before
+     * 0.4.0, if this browser holds one, answers every request on this site
+     * from its own saved files, this page's requests included, so nothing
+     * fetched here would be the site's. Such a copy is first offered the
+     * published release, whose worker lets these requests through.
+     */
+    async function seesTheSite() {
+      if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return true;
+      const speaks = async () => {
+        const worker = navigator.serviceWorker.controller;
+        if (!worker) return true;
+        const answer = (await askWorker(worker, { type: 'biblica:version' }, 3000)) || (await askWorker(worker, { type: 'biblica:version' }, 3000));
+        return Boolean(answer && answer.version);
+      };
+      if (await speaks()) return true;
+      show('app', line('This browser holds an older copy of Biblica. Offering it the published release first…'));
+      const registration = await navigator.serviceWorker.getRegistration('./');
+      if (!registration) return true;
+      await registration.update().catch(() => null);
+      const arriving = registration.installing || registration.waiting;
+      if (arriving) await settled(arriving);
+      return speaks();
+    }
+
+    /** Say why nothing can be checked from here, and offer the two ways round it. */
+    function explainOlderCopy() {
+      const button = document.createElement('button');
+      button.textContent = 'Forget the older copy and check again';
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        const registration = await navigator.serviceWorker.getRegistration('./');
+        if (registration) await registration.unregister();
+        window.location.reload();
+      });
+      show('app',
+        line('This page cannot see the site from this browser.', 'bad'),
+        line('This browser holds a copy of Biblica from before 0.4.0, which answers every request for the site’s files from the copy it saved. It was offered the published release just now and did not take it, which usually means the upload is incomplete or the site is still publishing it.'),
+        line('To see which files are at fault, open this page in a private tab, which holds no copy of the app. Or press the button: this browser then forgets its older copy and this page checks again. Nothing written in the app is touched, but the app will need a connection the next time it is opened in this browser, and until the upload is complete it may not open here at all.', 'muted'),
+        button);
+      show('text', line('Not checked, for the same reason.', 'muted'));
+      show('device', line('This browser holds a release from before 0.4.0.'));
+    }
+
+    (async () => {
+      if (!(await seesTheSite())) {
+        explainOlderCopy();
+        return;
+      }
+      const published = await checkApp();
+      await Promise.all([checkText(), checkDevice(published)]);
+    })();
+  </script>
+</body>
+</html>

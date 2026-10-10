@@ -5,20 +5,28 @@
 // The record exists to be looked back on, not to nag. Nothing here computes
 // a streak, a percentage or a "missed" count, and that is deliberate.
 //
+// How an entry repeats (weekly, monthly, yearly, and only in certain months
+// or seasons) is worked out in schedule.js.
+//
 // An entry points at what it is by a reference string:
 //   "prayer:our-father"   a prayer from the library ("prayer:own-3" for one of the reader's own)
 //   "devotion:rosary"     a guided devotion: rosary, stations, lectio or examen
+//   "guide:mental-prayer" another guided prayer, from the list in data-prayers.json
 //   "readings"            the Mass readings of the day
 //   "plan:bible-year"     a reading plan
 //   "custom"              something with no text in the app, such as "Mass"
 
-import { fromIso, parts, todayIso } from './calendar.js';
+import { todayIso } from './calendar.js';
+import { dayFor } from './context.js';
 import { formatSpan } from './bible.js';
-import { db } from './db.js';
+import { db, settings } from './db.js';
 import { rosarySetFor } from './devotions.js';
 import { activeNovenas, currentDay, daysPrayed, allNovenas } from './novenas.js';
 import { loadPlans, allProgress, nextDay } from './plans.js';
-import { builtInTitle, findPrayer, seasonalPrayerId } from './prayers.js';
+import { builtInTitle, findPrayer, prayerData, seasonalPrayerId } from './prayers.js';
+import { occursOn, scheduleLabel } from './schedule.js';
+
+export { scheduleLabel };
 
 export const TIMES = [
   ['morning', 'Morning'],
@@ -34,7 +42,15 @@ export const DEVOTION_NAMES = {
   examen: 'Evening examen',
 };
 
-const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** The guided prayers beyond the built-in devotions: [{ id, title, sub, ... }]. */
+export function guides() {
+  const data = prayerData();
+  return data && data.guides ? data.guides : [];
+}
+
+export function guide(id) {
+  return guides().find((item) => item.id === id) || null;
+}
 
 export async function allPractices() {
   const rows = await db.all('practices');
@@ -66,22 +82,14 @@ export async function endPractice(id, date) {
   await db.put('practices', record);
 }
 
+/** The liturgical season of a date, for entries kept only in a season. */
+const seasonOf = (date) => dayFor(date).season;
+
 /** Whether an entry belongs to a given date. */
 export function isScheduled(practice, date) {
   if (practice.created && date < practice.created) return false;
   if (practice.ended && date >= practice.ended) return false;
-  if (!practice.weekdays) return true;
-  return Boolean(practice.weekdays[parts(fromIso(date)).weekday]);
-}
-
-/** "Every day", "Fridays", "Mon, Wed, Fri". */
-export function scheduleLabel(practice) {
-  const days = practice.weekdays;
-  if (!days || days.every(Boolean)) return 'Every day';
-  const chosen = days.map((on, index) => (on ? index : -1)).filter((index) => index >= 0);
-  if (chosen.length === 1) return `${['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'][chosen[0]]}`;
-  if (chosen.join() === '1,2,3,4,5') return 'Weekdays';
-  return chosen.map((index) => WEEKDAY_SHORT[index]).join(', ');
+  return occursOn(practice, date, seasonOf);
 }
 
 export async function logFor(date) {
@@ -111,6 +119,8 @@ async function entriesFor(references, date) {
  * or a prayer is prayed from its own page. Returns how many were newly marked.
  */
 export async function markByReference(references, date) {
+  // With the marks turned off nothing is recorded: a plain list keeps no tally behind it.
+  if (settings().dailyMarks === false) return 0;
   const practices = await entriesFor(references, date);
   if (!practices.length) return 0;
   let marked = 0;
@@ -160,6 +170,8 @@ export async function titleFor(reference) {
     return prayer ? prayer.title : 'Prayer';
   }
   if (kind === 'devotion') return DEVOTION_NAMES[name] || 'Devotion';
+  if (kind === 'guide') return guide(name) ? guide(name).title : 'Guided prayer';
+  if (kind === 'journal') return 'Journal';
   if (kind === 'readings') return 'Mass readings';
   if (kind === 'plan') {
     const plan = (await loadPlans()).find((item) => item.id === name);
@@ -204,6 +216,11 @@ export async function itemsFor(date, day) {
       item.path = `#/pray/${name}`;
       if (name === 'rosary') item.sub = rosarySetFor(day).name;
       if (name === 'lectio') item.sub = 'With the Gospel of the day';
+    } else if (kind === 'guide') {
+      item.path = `#/pray/guide/${name}`;
+      if (guide(name)) item.sub = guide(name).sub;
+    } else if (kind === 'journal') {
+      item.path = `#/journal/${date}`;
     } else if (kind === 'readings') {
       item.path = `#/reading/${date}/0`;
       item.sub = day.celebration.name;

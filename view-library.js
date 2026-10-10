@@ -10,7 +10,7 @@ import {
   categories, deleteOwnPrayer, findPrayer, hasLatin, isFavourite, listedPrayers, ownPrayers, plainText,
   renderPrayer, saveOwnPrayer, toggleFavourite,
 } from './prayers.js';
-import { add, celebrate, choice, clear, confirmSheet, el, icon, once, openSheet, toast } from './ui.js';
+import { add, choice, clear, confirmSheet, el, icon, once, openSheet, toast } from './ui.js';
 import { addReference } from './view-daily.js';
 
 const remembered = { filter: '' };
@@ -97,16 +97,16 @@ export async function renderPrayerPage(container, { id }) {
     clear(actions);
     const open = await openEntryFor(listReferences, today());
     const onList = await isOnList(listReferences);
-    if (open) {
+    if (open && settings().dailyMarks !== false) {
+      // On today's list and not yet noted: saying Amen here notes it, quietly.
       add(actions, el('button', {
         class: 'button wide',
         onclick: once(async () => {
           await markByReference(listReferences, today());
-          celebrate({ season: dayFor(today()).season, count: 10 });
-          toast('Marked on today’s list');
+          toast('Noted on today’s list');
           await drawActions();
         }),
-      }, 'Mark as prayed today'));
+      }, 'Amen'));
     } else if (onList) {
       add(actions, el('p', { class: 'muted small centre', text: 'On your daily list.' }));
     } else {

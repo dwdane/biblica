@@ -5,7 +5,8 @@ import { dayFor, go, readingsOn, today } from './context.js';
 import { db } from './db.js';
 import { rosarySetFor } from './devotions.js';
 import { allNovenas, isFinished } from './novenas.js';
-import { currentPractices, itemsFor } from './practices.js';
+import { allPatrons } from './patrons.js';
+import { currentPractices, guides, itemsFor } from './practices.js';
 import { angelusFor, builtInTitle, listedPrayers, marianAntiphonFor } from './prayers.js';
 import { add, el, icon } from './ui.js';
 
@@ -24,8 +25,8 @@ function section(title, rows) {
 export async function render(container) {
   const now = today();
   const day = dayFor(now);
-  const [practices, items, novenas, intentions] = await Promise.all([
-    currentPractices(), itemsFor(now, day), allNovenas(), db.all('intentions'),
+  const [practices, items, novenas, intentions, patrons] = await Promise.all([
+    currentPractices(), itemsFor(now, day), allNovenas(), db.all('intentions'), allPatrons(),
   ]);
   const activeNovenas = novenas.filter((item) => !isFinished(item)).length;
   const activeIntentions = intentions.filter((item) => !item.answered).length;
@@ -45,6 +46,7 @@ export async function render(container) {
       row('Daily prayers', dailySub, '#/pray/list'),
       row('Novenas', activeNovenas ? `${activeNovenas} under way` : 'Nine days of prayer for one intention', '#/pray/novenas'),
       row('Intentions', activeIntentions ? `${activeIntentions} you are praying for` : 'The people and needs you keep before God', '#/pray/intentions'),
+      row('My saints', patrons.length ? patrons.map((item) => item.name).slice(0, 3).join(', ') : 'Your confirmation saint, your name saint, your patrons', '#/pray/saints'),
     ]),
     section('Devotions', [
       row('The Rosary', rosarySetFor(day).name, '#/pray/rosary'),
@@ -52,6 +54,11 @@ export async function render(container) {
       row('Lectio Divina', gospel ? `Today’s Gospel, ${gospel.citation}` : 'Praying with Scripture', '#/pray/lectio'),
       row('Stations of the Cross', day.weekday === 5 && (day.season === 'lent' || day.season === 'holy-week') ? 'A Friday of Lent' : null, '#/pray/stations'),
       row(builtInTitle(antiphon), 'The antiphon of Our Lady for this season', `#/prayer/${antiphon}`),
+      guides().map((item) => row(item.title, item.sub, `#/pray/guide/${item.id}`)),
+    ]),
+    section('The liturgy', [
+      row('The Mass', 'Follow along: the ordinary form and the traditional Latin Mass', '#/mass'),
+      row('The Divine Office', 'The prayer of the hours: what it is and where to pray it', '#/pray/office'),
     ]),
     section('Library', [
       row('Prayers', `${library.length} prayers, ${withLatin} with the Latin`, '#/pray/library'),
@@ -59,6 +66,7 @@ export async function render(container) {
     ]),
     section('Conscience', [
       row('Evening examen', 'Looking back over the day with God', '#/pray/examen'),
+      row('Journal', 'What you were thankful for, and where God was at work', '#/journal'),
       row('Confession', 'Examination of conscience, and how to confess', '#/pray/confession'),
     ]),
   );

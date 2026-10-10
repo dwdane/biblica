@@ -1,7 +1,13 @@
 <!DOCTYPE html>
+<!-- index.html
+     The one page of the app. Everything else is loaded by app.js. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <!-- The privacy promise, enforced by the browser: the app may load and contact
+       nothing but its own files. See PRIVACY.md. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+  <meta name="referrer" content="no-referrer" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Biblica</title>
   <meta name="description" content="A Catholic Bible and daily prayer companion that works offline." />

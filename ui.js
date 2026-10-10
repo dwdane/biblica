@@ -43,6 +43,64 @@ function append(node, children) {
 }
 
 /**
+ * Keep what the reader is typing without their having to ask. Call `touch()`
+ * on every change: `save` runs a moment after they pause, and at once when
+ * the app is hidden or closed, which on a phone is often the last the page
+ * hears before it is thrown away. Saves never overlap. `flush()` saves now;
+ * `stop()` saves a last time and lets go. Both resolve to true when what was
+ * written is safely kept, false when the save failed. A failed save is tried
+ * again at the next chance, and the reader is told once that it failed.
+ */
+export function keepSaved(save, delay = 1200) {
+  let timer = null;
+  let dirty = false;
+  let warned = false;
+  let last = Promise.resolve(true);
+  const attempt = async () => {
+    try {
+      await save();
+      return true;
+    } catch (error) {
+      console.warn(error);
+      // Still unsaved: the next pause, the next flush or leaving the screen tries again.
+      dirty = true;
+      if (!warned) {
+        warned = true;
+        toast('This could not be saved. The device may be out of space.');
+      }
+      return false;
+    }
+  };
+  const run = () => {
+    clearTimeout(timer);
+    timer = null;
+    if (dirty) {
+      dirty = false;
+      last = last.then(attempt);
+    }
+    return last;
+  };
+  const whenHidden = () => { if (document.visibilityState === 'hidden') run(); };
+  document.addEventListener('visibilitychange', whenHidden);
+  window.addEventListener('pagehide', run);
+  return {
+    touch() {
+      dirty = true;
+      clearTimeout(timer);
+      timer = setTimeout(run, delay);
+    },
+    flush() {
+      return run();
+    },
+    stop() {
+      document.removeEventListener('visibilitychange', whenHidden);
+      window.removeEventListener('pagehide', run);
+      return run();
+    },
+  };
+}
+
+/**
  * Wrap an async redraw so that calls run one after another. Two taps in quick
  * succession then draw twice in order, rather than both writing at once.
  */
@@ -120,7 +178,11 @@ const ICON_PATHS = {
   star: '<path d="M12 4.2l2.3 4.9 5.3.7-3.9 3.7 1 5.3L12 16.2l-4.7 2.6 1-5.3-3.9-3.7 5.3-.7z"/>',
   plus: '<path d="M12 5.5v13M5.5 12h13"/>',
   edit: '<path d="M5 19l1-4L16.5 4.5l3 3L9 18z"/><path d="M14.5 6.5l3 3"/>',
+  study: '<path d="M12 6.5c-1.8-1.3-4.2-1.8-7-1.5v12.5c2.8-.3 5.2.2 7 1.5 1.8-1.3 4.2-1.8 7-1.5V5c-2.8-.3-5.2.2-7 1.5z"/><path d="M12 6.5V19"/>',
   trash: '<path d="M5 7h14M10 7V4.8h4V7M7 7l.8 12.2h8.4L17 7"/>',
+  out: '<path d="M13.5 5H19v5.5M19 5l-8 8"/><path d="M10 6.5H6.5A1.5 1.5 0 0 0 5 8v9.5A1.5 1.5 0 0 0 6.5 19H16a1.5 1.5 0 0 0 1.5-1.5V14"/>',
+  mass: '<path d="M8.5 4.5h7M9 4.5c0 4 .8 6 3 6s3-2 3-6M12 10.5V17M8 19.5c0-1.4 1.8-2.5 4-2.5s4 1.1 4 2.5z"/>',
+  hours: '<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>',
 };
 
 export function icon(name, size = 22) {
@@ -148,6 +210,36 @@ export function toast(message) {
   toastTimer = setTimeout(() => node.classList.remove('show'), 2400);
 }
 
+const FLASH_KEY = 'biblica:flash';
+
+/**
+ * Start the app again and show a message once it is back. Used after
+ * something that changes everything at once (a restore, erasing), where a
+ * clean start is the only sure way that no screen keeps what it had in mind.
+ */
+export function restartWith(message, hash = '#/today') {
+  try {
+    sessionStorage.setItem(FLASH_KEY, message);
+  } catch {
+    // Without session storage the app still restarts; only the message is lost.
+  }
+  // The address is changed without the router hearing of it: a screen begun now would only
+  // have its loading cut off by the reload, and say so in the console.
+  window.history.replaceState(null, '', hash);
+  window.location.reload();
+}
+
+/** Show the message left by restartWith(), if there is one. Called once at start-up. */
+export function showFlash() {
+  try {
+    const message = sessionStorage.getItem(FLASH_KEY);
+    sessionStorage.removeItem(FLASH_KEY);
+    if (message) toast(message);
+  } catch {
+    // Nothing was left.
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Bottom sheet
 // ---------------------------------------------------------------------------
@@ -156,7 +248,7 @@ export function toast(message) {
  * Open a sheet that slides up from the bottom of the screen.
  * `build(close)` returns the sheet's content. Returns the close function.
  */
-export function openSheet(title, build, { tall = false } = {}) {
+export function openSheet(title, build, { tall = false, onClose = null } = {}) {
   const previousFocus = document.activeElement;
   const backdrop = el('div', { class: 'sheet-backdrop' });
   const panel = el('div', { class: `sheet${tall ? ' tall' : ''}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': title, tabindex: '-1' });
@@ -170,6 +262,8 @@ export function openSheet(title, build, { tall = false } = {}) {
     openSheets.splice(openSheets.indexOf(panel), 1);
     setTimeout(() => backdrop.remove(), 200);
     if (previousFocus && previousFocus.isConnected && previousFocus.focus) previousFocus.focus({ preventScroll: true });
+    // However the sheet was closed: a button, the backdrop or Escape.
+    if (onClose) onClose();
   }
   function onKey(event) {
     // Only the sheet on top answers the keyboard.

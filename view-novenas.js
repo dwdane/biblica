@@ -128,12 +128,13 @@ async function prayerPicker(chosen, onChange) {
   }, { tall: true });
 }
 
-function startSheet(template) {
+export function startSheet(template) {
   const now = today();
   const draft = { prayers: [...template.prayers], started: now };
   openSheet(template.name, (close) => {
     const title = el('input', { class: 'field', type: 'text', 'aria-label': 'Name of the novena' });
-    title.value = template.id === 'own' ? '' : template.name;
+    // A novena of the reader's own making is named by the reader, unless whoever opened the sheet suggests a name.
+    title.value = template.title ?? (template.id === 'own' ? '' : template.name);
     title.placeholder = 'Name, such as “Novena to Saint Thérèse”';
     const intention = el('textarea', { class: 'field note-field', rows: '3', placeholder: 'What, or whom, are you praying for?', 'aria-label': 'Intention' });
     const days = el('input', { class: 'field short', type: 'number', min: '2', max: '60', inputmode: 'numeric', 'aria-label': 'Number of days' });
