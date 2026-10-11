@@ -109,9 +109,17 @@
 
 * { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+/* The page fills the screen and never scrolls; the screens scroll inside .scroller.
+   On an iPhone a scrolling page nudges fixed elements such as the tab bar up and down. */
+html {
+  -webkit-text-size-adjust: 100%;
+  height: 100%;
+  overflow: hidden;
+}
 
 body {
+  height: 100%;
+  overflow: hidden;
   margin: 0;
   background: var(--bg);
   color: var(--ink);
@@ -133,12 +141,21 @@ h1, h2, h3, p { margin: 0; }
   border-radius: 6px;
 }
 
+.scroller {
+  position: fixed;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .screen {
   max-width: var(--measure);
   margin: 0 auto;
   padding: calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 16px)
     calc(env(safe-area-inset-bottom) + var(--tabbar-height) + 28px) calc(env(safe-area-inset-left) + 16px);
-  min-height: 100vh;
+  min-height: 100%;
   outline: none;
 }
 body.has-action-bar .screen { padding-bottom: calc(env(safe-area-inset-bottom) + var(--tabbar-height) + 230px); }
@@ -941,24 +958,8 @@ mark { background: var(--hl-gold); color: inherit; border-radius: 3px; padding: 
 /* ---------- The daily list ---------- */
 
 .daily-time { font-size: 0.82rem; font-weight: 650; color: var(--rubric); margin: 12px 0 0; }
-.daily-list { list-style: none; margin: 0; padding: 0; }
-.daily-row { display: flex; align-items: center; gap: 12px; }
-.daily-row + .daily-row { border-top: 1px solid var(--line); }
-.daily-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 12px 0;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  color: var(--ink);
-}
 .daily-title { font-family: var(--serif); font-size: 1.13rem; font-weight: 600; line-height: 1.3; }
 .daily-sub { color: var(--muted); font-size: 0.88rem; }
-.daily-go { color: var(--muted); display: inline-flex; }
 .daily-footer { display: flex; justify-content: space-between; flex-wrap: wrap; margin: 6px -4px -8px; }
 
 /* ---------- Forms in sheets ---------- */
@@ -1448,7 +1449,6 @@ textarea.field.reflection-text {
 
 /* ---------- The daily list: no boxes, a quiet word once prayed ---------- */
 
-div.daily-body { cursor: default; }
 .daily-mark {
   flex: none;
   font-size: 0.78rem;
@@ -1593,3 +1593,215 @@ body:has(.update-banner) .toast { bottom: calc(env(safe-area-inset-bottom) + var
 .mass-aside { font-family: var(--sans); font-size: 0.82rem; font-style: normal; color: var(--rubric); }
 .mass-aside::before { content: "("; }
 .mass-aside::after { content: ")"; }
+
+
+/* ---------- Release 0.5: the rule of life, Today as one's own, saving as one writes ---------- */
+
+/* Whether what has been written is kept. */
+.save-state { margin: 6px 0 0; font-size: 0.8rem; color: var(--muted); min-height: 1.2em; }
+.save-state[data-state="failed"] { color: var(--danger); }
+.reader-bar .save-state { margin: 0; flex: 1; text-align: center; }
+
+/* A card heading with a small action at its right. */
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.card-head .card-heading { margin-bottom: 2px; }
+.text-button.small { font-size: 0.88rem; min-height: 36px; }
+.text-button.inline { display: inline; min-height: 0; padding: 0; font-size: inherit; }
+
+/* For today: ways in, not a list of tasks. */
+.rule-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.rule-item + .rule-item { border-top: 1px solid var(--line); }
+.rule-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--ink);
+  min-height: 52px;
+}
+button.rule-body:active { background: var(--soft); border-radius: var(--radius-small); }
+.rule-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--lit);
+}
+.rule-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.rule-occasion {
+  flex: none;
+  max-width: 40%;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--lit);
+  font-size: 0.74rem;
+  font-weight: 650;
+  text-align: center;
+}
+.rule-item.plain .rule-icon { opacity: 0.75; }
+.rule-choices { margin: 6px 0 12px; }
+.rule-choice + .rule-choice { border-top: 1px solid var(--line); }
+.rule-choice .row-text { display: flex; flex-direction: column; font-family: var(--sans); font-size: 1rem; }
+
+/* Today's own cards. */
+.today-foot { display: flex; justify-content: center; margin: 4px 0 10px; }
+.sunday-card p { font-family: var(--serif); font-size: 1.04rem; line-height: 1.5; }
+.aspiration-card .aspiration-text,
+.aspiration-row .aspiration-text { font-family: var(--serif); font-size: 1.16rem; font-style: italic; line-height: 1.4; }
+.journal-card .journal-preview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Arranging Today. */
+.arrange-list { margin: 8px 0 14px; }
+.arrange-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+.arrange-row + .arrange-row { border-top: 1px solid var(--line); }
+.arrange-row.off .arrange-text { opacity: 0.55; }
+.arrange-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; cursor: pointer; }
+.arrange-tools { flex: none; display: flex; align-items: center; gap: 2px; }
+.icon-button.small { width: 40px; height: 40px; }
+.switch { position: relative; display: inline-flex; width: 48px; height: 30px; margin-left: 4px; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+.switch-track { width: 48px; height: 30px; border-radius: 999px; background: var(--line); transition: background 0.15s; position: relative; }
+.switch-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s;
+}
+.switch input:checked + .switch-track { background: var(--lit); }
+.switch input:checked + .switch-track::after { transform: translateX(18px); }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--lit); outline-offset: 2px; }
+
+/* The journal: one page of writing, with headings only where something was written. */
+.journal-sections { margin-top: 14px; }
+.journal-section { margin: 0 0 14px; }
+.journal-heading { font-size: 0.82rem; font-weight: 650; letter-spacing: 0.02em; color: var(--rubric); margin: 0 0 2px; }
+.journal-text {
+  display: block;
+  width: 100%;
+  min-height: 2.2em;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: var(--reading-size, 19px);
+  line-height: 1.55;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+}
+.journal-text:focus-visible { outline: none; box-shadow: inset 2px 0 0 var(--lit); padding-left: 8px; }
+.journal-free { min-height: 8em; margin-top: 14px; }
+/* With headed parts below it, an empty free page needs less room before them. */
+.journal-page:has(.journal-section) .journal-free { min-height: 3.2em; }
+.journal-adders { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 14px 0 6px; }
+.journal-foot { margin-top: 10px; }
+
+/* For times like these. */
+.help-urgent {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-small);
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 1.45;
+}
+.help-urgent.quiet { font-weight: 500; font-size: 0.92rem; border-color: var(--line); }
+.help-do { margin: 6px 0 4px; padding-left: 1.2em; font-size: 1.02rem; line-height: 1.5; }
+.help-do li + li { margin-top: 4px; }
+.help-passage {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin: 8px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  text-align: left;
+  color: var(--ink);
+}
+.help-verses { font-family: var(--serif); font-size: 1.04rem; line-height: 1.5; }
+.help-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 6px; }
+.help-from { margin: 6px 0 8px; padding-left: 1.2em; }
+
+/* Short prayers. */
+.aspiration-list { list-style: none; margin: 0; padding: 0; }
+.aspiration-row { display: flex; flex-direction: column; gap: 3px; padding: 10px 0; }
+.aspiration-row + .aspiration-row { border-top: 1px solid var(--line); }
+.aspiration-card { gap: 6px; }
+
+.sheet-list { margin: 10px 0; }
+
+/* The translation: its description in Settings, its name under a chapter title,
+   and a translation no longer read that can be removed from the device. */
+.translation-about { margin: -2px 0 10px; }
+.translation-name { font-style: italic; }
+.storage-other { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 8px 0; }
+.storage-other p { margin: 0; flex: 1 1 14em; }
+
+/* Who speaks, in the CPDV's Song of Songs: a rubric, not part of the words spoken. */
+.speaker {
+  font-family: var(--sans);
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rubric);
+}
+.speaker.lead { display: block; margin: 4px 0 2px; }
+.chapter-text.flow .speaker.lead { display: inline; margin: 0 0.35em 0 0; }
+/* In running text the chapter's first letter is a speaker's name, not a versal. */
+.chapter-text.flow.speakers::first-letter { float: none; font-size: inherit; line-height: inherit; padding: 0; }
+
+/* About a book of the Bible. */
+.book-link { display: inline-block; margin: 2px 0 10px; font-size: 0.92rem; }
+.picker-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.book-lead { font-family: var(--serif); font-size: 1.12rem; line-height: 1.6; margin: 10px 0 14px; }
+.book-facts { margin: 0 0 8px; }
+.book-fact { padding: 10px 0; border-top: 1px solid var(--line); }
+.book-fact dt { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--rubric); margin-bottom: 3px; }
+.book-fact dd { margin: 0; line-height: 1.5; }
+.book-themes { margin: 6px 0 4px; padding-left: 1.2em; line-height: 1.5; }
+.book-themes li + li { margin-top: 3px; }
+.book-passage-note { font-weight: 600; font-size: 0.95rem; }
+.book-canon { margin: 14px 0; padding: 10px 12px; border-left: 3px solid var(--line); font-size: 0.95rem; line-height: 1.5; }
+
+/* Early Christian writings: on the shelf after the Bible's books, and read whole. */
+.picker-early { margin: 22px 0 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.picker-early summary { display: flex; align-items: baseline; gap: 10px; cursor: pointer; padding: 6px 0; list-style: none; }
+.picker-early summary::-webkit-details-marker { display: none; }
+/* The fold's own marker is lost to the flex layout, so it is drawn here. */
+.picker-early summary::before { content: '▸'; color: var(--muted); width: 1em; transition: transform 0.15s; }
+.picker-early[open] summary::before { transform: rotate(90deg); }
+.picker-early-title { font-weight: 600; }
+.picker-early-list { display: flex; flex-direction: column; }
+.early-about { margin: 12px 0; }
+.early-about summary, .early-contents summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.early-lead { font-family: var(--serif); font-size: 1.06rem; line-height: 1.55; margin: 10px 0; }
+.early-contents { margin: 6px 0 14px; }
+.early-contents-list { margin: 6px 0; padding-left: 1.4em; line-height: 1.6; }
+.early-contents-list .text-button { text-align: left; }
+.early-chapter { font-family: var(--serif); font-size: 1.12rem; font-weight: 600; margin: 26px 0 6px; scroll-margin-top: 68px; }
+.early-p { font-family: var(--serif); font-size: var(--reading-size, 19px); line-height: 1.6; margin: 0 0 12px; }
+.early-translation { margin-top: 24px; }
+.help-urgent p { margin: 0; }
+.help-urgent .help-links { margin: 10px 0 0; }

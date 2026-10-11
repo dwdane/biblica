@@ -1,8 +1,10 @@
-# Biblica 0.4.0
+# Biblica 0.5.0
 
 A Catholic Bible and daily prayer companion that installs to the home screen and works offline:
-the Douay-Rheims Bible, the readings of the day, a daily prayer list, the Rosary and other
-devotions, a Mass companion, and the commentary of the Fathers of the Church.
+the Douay-Rheims Bible (and, as an option, the Catholic Public Domain Version) with an
+introduction to every book, the readings of the day, a rule of life, the Rosary and other
+devotions, counsel from the saints for hard and good times, a Mass companion, the commentary of the
+Fathers of the Church, and a shelf of early Christian writings.
 
 **Private by design.** Everything a reader writes stays on their own device. There are no
 accounts, no servers, no analytics, no advertising and no tracking, and the app is forbidden by
@@ -22,12 +24,15 @@ the top level. It is generated from the project's folders by `uv run biblica-fla
 source there, not here. Do not edit these files on GitHub either: each release records a
 fingerprint of every file, and installed copies refuse a release whose files do not match.
 
-- 73 files are the app and its papers. Replace them all for every release.
-- 73 files named `drb-*.json` are the Bible text.
+- 79 files are the app and its papers. Replace them all for every release.
+- 73 files named `drb-*.json` are the Bible text (Douay-Rheims).
 - 73 files named `study-*.json` are the Latin and the cross-references.
-- 68 files named `fathers-*.json` are the commentary of the Fathers.
+- 81 files named `fathers-*.json` and `early-*.json` are the commentary of the Fathers
+  and the early Christian writings.
+- 73 files named `cpdv-*.json` are the Catholic Public Domain Version, the optional
+  second translation.
 
-The last three kinds change rarely; the release notes say when they do.
+The last four kinds change rarely; the release notes say when they do.
 
 ## Publishing and updating
 

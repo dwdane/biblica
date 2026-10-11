@@ -7,7 +7,7 @@ import { go, longDate, readingsOn, today } from './context.js';
 import { db, settings } from './db.js';
 import { nextDay, plan as loadPlan, progress as loadProgress, setDayDone } from './plans.js';
 import { markByReference } from './practices.js';
-import { celebrate, el, icon } from './ui.js';
+import { el, icon, toast } from './ui.js';
 
 /** Render verses as tappable text; tapping one opens it in the Bible. */
 async function passageBlock(bookId, spans) {
@@ -79,9 +79,6 @@ export async function renderReading(container, { date, index, mass }) {
       await db.put('readings', record);
       const allDone = readings.every((_, i) => record.done[i]);
       if (allDone) await markByReference('readings', iso);
-      celebrate(allDone
-        ? { season: found.day.season, title: 'All of today’s readings', sub: 'Thanks be to God.' }
-        : { season: found.day.season, count: 12 });
       drawFinish();
       return;
     }
@@ -139,12 +136,7 @@ export async function renderPlanDay(container, { planId, dayNumber }) {
       record = await setDayDone(planId, index, true);
       await markByReference(`plan:${planId}`, today());
       const upcoming = nextDay(definition, record);
-      const season = readingsOn(today()).day.season;
-      if (upcoming === -1) {
-        celebrate({ symbols: ['👑', '✨', '🕊️'], title: 'Plan complete', sub: definition.name, count: 34 });
-      } else {
-        celebrate({ season, title: `Day ${index + 1} of ${definition.days.length}`, sub: 'Well done.' });
-      }
+      if (upcoming === -1) toast(`You have read the whole of ${definition.name}. Thanks be to God.`);
       drawFinish();
       return;
     }

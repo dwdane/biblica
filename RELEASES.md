@@ -1,5 +1,232 @@
 # Release notes
 
+## 0.5.0: a rule of life, a second translation and the earliest writings
+
+Your notes for this round, one by one, then something I found that you did not ask about.
+
+### What you asked for
+
+- **"A short 'about' for each book."** Every book of the Bible has an introduction: what it is,
+  who wrote it and when (the Church's tradition and, where it differs, what most scholars think,
+  without polemics either way), its language, the world it came from, what to look for, and two to
+  four passages worth knowing, shown in the words of the Bible and a tap from the reader. Open it
+  from "About Genesis" under the title of chapter 1, or from the book picker. They were drafted
+  from standard Catholic and scholarly reference works and then checked independently, field by
+  field; every key passage was opened in the app's own text. Pinpoint references that could not be
+  confirmed, Catechism paragraph numbers among them, were taken out rather than risked.
+- **"Non-canonical writings from the very early, at the end of the Bible, in a drop-down."** At the
+  end of the book picker, after Revelation and kept apart from the books, is a fold marked
+  **Early Christian writings, Not Scripture**. It holds what you suggested and what goes with it:
+  the **Didache**; **Saint Clement of Rome's** letter to the Corinthians; the seven letters of
+  **Saint Ignatius of Antioch**; **Saint Polycarp's** letter to the Philippians and the
+  **Martyrdom of Polycarp**; the **Letter to Diognetus**; and **Saint Justin Martyr's** First
+  Apology, whose last chapters are the oldest account of the Sunday Mass. Each has a short
+  introduction, and every page says "not Scripture". They are also under Pray, Library. I kept to
+  works by saints or of the apostolic age that the Church has long honoured, in public-domain
+  translations; Ignatius is given in the shorter form scholars accept as his own.
+- **"What open source modern translation can we incorporate? (sacredbible.org)"** That site is the
+  **Catholic Public Domain Version**, and it is in: choose it in the reader's text settings (the
+  "Aa" button) or in Settings, Reading. I made it an option, never the default, for a reason you
+  should know: it has **no imprimatur**. It is one layman's translation (Ronald L. Conte Jr.), no
+  bishop has reviewed it, and its translator has been criticised for opinions of his own. The
+  translation itself reads plainly and follows the Latin closely. So the Douay-Rheims stays the
+  default, the app says what the CPDV is wherever it is chosen, and the prayers always quote the
+  Douay-Rheims. It sits on the Douay-Rheims' verses, so your notes, highlights and links stay on
+  the same verses in either; in the Song of Songs it names who is speaking, shown as small red
+  rubrics. If you read the CPDV for a while and switch back, Settings, Storage offers to remove it.
+- **"Prayer intentions quick button to open and edit from the daily page."** "Intentions" sits at
+  the foot of the For today card and opens your intentions in a sheet: add one, change one, mark one
+  answered, without leaving Today. There is also an Intentions card you can put on Today (below).
+- **"Daily prayers need to feel way less like a checklist."** The card is now **For today**: what
+  you try to do today from your **rule of life**, each with a small icon for what it is (a prayer,
+  a devotion, the Mass, a guided prayer) and, for what does not come every day, a word saying why it
+  is there today: "First Friday", "Fridays, in Lent", "Once a year". Tapping one opens it. There
+  are no boxes and, by default, **no marks at all**: "Mark what I have prayed" is off unless you
+  turn it on in Settings. If you had been marking in 0.4, your phone keeps them on; you can turn
+  them off there. An empty rule invites you with **Help me choose**: five starting rules by state
+  of life (just beginning, a busy parent, working with little time, a student, with more time),
+  each a few things you can untick, as Saint Francis de Sales advises.
+- **"Be careful of the pitfalls that came up during study."** The shower of symbols on finishing
+  the Rosary, the Stations, a guided prayer, a novena day or a plan day is **gone**; "Well done." is
+  gone. Nothing counts streaks or days missed. Nothing tells anyone what stage of the spiritual
+  life they are in. Counsel is opened by the reader, never pushed. The examination of conscience
+  says to keep it short, and the scruples page says plainly when to see a doctor as well as a
+  confessor.
+- **"Deep dive: an app for helping people become saints, in the good times and the bad."** Under
+  Pray, **For times like these**: counsel from the saints for fourteen times of life. In hard
+  times: dry prayer, having missed your prayer, after a fall into sin, temptation, anxiety,
+  suffering, grief, feeling far from God, scruples, being too busy, and when it is all too much
+  (with crisis lines to call or text from the page). In good times: joy, when things go well, and
+  beginning again. Each gives the counsel in the app's own words with the saints and works it
+  comes from, what to do now, Scripture in the Bible's words, and a prayer. Also new: thirty
+  **short prayers** to carry through the day, one on Today; **Offering the day**, a guided morning
+  prayer; **A monthly recollection** and **A yearly review**, which the rule of life can schedule;
+  a word on **keeping Sunday** on Sundays and holy days; and an **Advice** tab in Confession for
+  what your confessor told you, kept from one confession to the next and private like the rest.
+- **"Make the dashboard customizable; the reading-plan prompt clutters it."** Today has **Arrange
+  this page** at the bottom (also in Settings): show, hide and move each card. The reading-plan
+  card now appears **only while you follow a plan**; until then a quiet "Reading plans" link sits
+  on the Continue reading card. Cards you can add: Intentions, today's Journal, For times like
+  these. "On this day" and the rest can be hidden.
+- **"The journal shouldn't be so structured, but I like the examen populating it."** A journal page
+  is now **free writing**, at the top. Headed parts follow it, and appear only where the examen or
+  another guided prayer wrote them ("Thanks", "Where God was at work", "For tomorrow") or where you
+  add one from the headings under the page. Nothing you wrote before is changed.
+- **"The bottom buttons move up a little as I scroll."** That is an iPhone quirk with bars fixed to
+  the bottom of a scrolling page. The page no longer scrolls; each screen scrolls inside it, which
+  leaves the tab bar where it is. **I could only test this in Chromium; please check it on your
+  phone** (see below).
+- **"Autosave typed notes; the Save button makes it hard to tell what is saved."** Verse notes,
+  reflections, the journal, your saints' notes and the confessor's advice now save themselves a
+  moment after you stop typing, when you leave the field, when you close the sheet and when you
+  put the app away, and a line says "Saving…" then "Saved". There is no Save button. A note sheet
+  has **Done**; a new note can be **Discarded**; an existing one can be deleted, and changing your
+  mind at "Delete this note?" keeps what you had just typed.
+
+### Something you did not ask for: the Bible text had errors
+
+Lining the CPDV up with the Douay-Rheims verse by verse showed that the text the app has shipped
+since 0.1 had **lost words in transcription**, in more than two hundred verses. Some reversed the
+sense: Sirach 15:8 read "Lying men **shall be** mindful of her" (it is "shall **not** be"), and
+2 Corinthians 2:1 "I determined… **to come** to you again in sorrow" (it is "**not** to come").
+John 17:1 had lost "Father,", 1 Peter 1:1 "Galatia", 1 Samuel 17:49 "the stone was fixed in his
+forehead", 2 Timothy 2:1 "the grace which is in". Fourteen psalms had lost the "Alleluia." that
+opens them. And Baruch 6:7 printed the words of verse 37.
+
+The build now restores them from the second transcription we already compared against, on strict
+conditions (it must agree on every other word of the verse, and none of its own known faults may
+come with it). An independent audit then judged every one of the 261 restorations against the
+Latin Vulgate, from which Challoner translated. **31 had nothing behind them in the Latin** (a word
+repeated from nearby, "scale **down** the walls" for "scale the walls", a garble) and are refused
+by name; 230 stand. Where the two transcriptions agree against the Latin and nothing settles it,
+the old reading stays. Verse numbering is unchanged, so nothing you attached to a verse moves.
+
+**If you saved the Bible for offline use,** the corrected books arrive by themselves the next
+time the app is opened after you upload this release, without discarding anything else you saved.
+That only happens once **zip 2** is on the site (see Upgrading).
+
+### Upgrading from 0.4
+
+Nothing to do on your device, and nothing you wrote is converted. Your daily list is your rule of
+life; entries keep their days. Whether marks stay on is decided once, from whether you ever used
+them. Backups from any earlier release restore into 0.5.
+
+For a deployment from a phone, upload **zip 1** (the app, now 79 files), **zip 2** (the
+Douay-Rheims, corrected), **zip 4** (the Fathers, now with the early Christian writings,
+81 files) and **zip 5** (the CPDV, new, 73 files). **Zip 3 is unchanged**; skip it. Files with
+the same names are replaced and none needs deleting. Then open `check.html`: it now checks the
+CPDV and the early writings too. `docs/PUBLISHING.md` has the steps.
+
+For a deployment from folders: replace the files; `data/cpdv/`, `data/early/`,
+`data/introductions.json` and `data/early.json` are new.
+
+`TEXT_VERSION` was not bumped: devices keep the Latin and the Fathers they saved, and fetch again
+only the Douay-Rheims books they kept.
+
+### How this release was checked
+
+- **88 logic tests** in Node (8 new: Today's arrangement, the reason an entry is due, the short
+  prayer of the day, counsel and starting rules complete, and a guard against JavaScript that
+  older iPhones cannot parse) and **266 pipeline tests** (35 new: the CPDV on the Douay-Rheims'
+  verses with its words unchanged, the corrections to the text and the refusals, the text revision
+  in step with the worker, the introductions, the early writings and their quotations, and the
+  checks on counsel and rules).
+- **Browser checks at phone size**, with the content security policy on throughout: reader 40,
+  prayer 94, study 194, the Mass companion and Settings 103, and the new script 71, all run on the
+  folder layout and again on the flat copy you upload.
+  A new script, `release05.py`, drives everything new: switching translation and back, the
+  speakers in the Song of Songs, search in the chosen translation, removing a translation no
+  longer read; every book's introduction and its passages; the early writings from the book
+  picker, Ignatius in the shorter form, the chapter list, offline once opened; Today arranged,
+  hidden, reordered and reset, intentions added from Today, the Sunday card; the rule of life from
+  "Help me choose", and a First Friday entry saying so; marks kept on for a reader who had used
+  them and off for one who had not; counsel, short prayers and the confessor's advice; and the tab
+  bar staying put while a screen scrolls, with Back returning to the place.
+- **The update path**, from 0.4.0 and from 0.2.1, with the same fourteen uploads as before; from
+  0.4.0 it also checks that a saved book corrected since is fetched again once the new release is
+  running: 57 checks from 0.2.1 and 55 from 0.4.0. And the path your phone takes: an installed
+  flat 0.4.0, with the Bible as 0.4.0 left it, taking flat 0.5.0 (13 checks): an upload with two
+  files left behind is not installed; the completed one, with zips 1, 2, 4 and 5, is, with the
+  saved Bible and a note kept and the saved John corrected; `check.html` passes all five kinds of
+  file.
+
+### What the independent reviews found
+
+Three reviews were made before release by separate agents that had not written the work: the
+code, run against its own server; the spiritual and pastoral content; and the corrections to the
+text, judged against the Latin. Everything below is fixed.
+
+**The code.** The Song of Songs speaker rubrics used a regular expression that Safari cannot read
+before iOS 16.4; one such line stops the whole app on an older iPhone. A verse note was lost if
+you chose "Add to a reflection instead" and then changed your mind; edits typed just before
+"Delete" were lost if you cancelled; and the confessor's advice dropped what was typed since the
+last pause when you changed tab. A device could record the text corrections as done while the
+site still had the old text (a phone upload of zip 1 alone), and then never take them; the worker
+now checks the revision inside each file. Five verses had a stray mark where a restored word had
+been lost. Search could search the Douay-Rheims while saying it searched the CPDV after a failed
+download. With the CPDV chosen, the prayers quoted the CPDV; they now always quote the
+Douay-Rheims, and say so if a book is not yet on the device. Smaller: the chapter list of an early
+writing hid the heading under the bar; screen readers heard "Saving…" at every keystroke; the
+fold in the book picker showed no sign it could open.
+
+**The content.** The temptation page said "only consent is sin" in a way that excused dwelling on
+a temptation; it now says, as Saint Francis de Sales does, that sin begins with consent or with
+choosing to dwell on the pleasure. The scruples page now says that severe or lasting scruples can
+be an illness, obsessive-compulsive disorder, that a doctor can treat. Despair, suffering, grief
+and dryness each gained a plain word on when a doctor is needed; the crisis lines now cover Canada
+(988) and the United Kingdom and Ireland (116 123) and can be tapped. Justin's Apology had lost
+the rescript of Hadrian that Justin himself appended; it is back, and only the later forgeries are
+left out. "Biblica keeps no count of days" was not true with marks on; it now says what is true.
+And a dozen smaller corrections of fact and wording, in the introductions to the early writings,
+the CPDV's description and the starting rules (Sunday Mass is no longer "when I can").
+
+**The text.** As above: 31 restorations refused, five stray marks removed, and fourteen psalm
+titles found missing.
+
+### What to test by hand
+
+1. **The tab bar.** Scroll a long chapter up and down, open and close the keyboard in a note, and
+   watch the bar at the bottom. It should not move. Also tell me if anything else about scrolling
+   feels different (tapping the status bar no longer jumps to the top).
+2. **A note.** Tap a verse, Note, type, then close the sheet any way you like. Is it kept? Does
+   the line under it make clear it is saved?
+3. **Today.** Arrange this page. Is it obvious how? Put Intentions on, take On this day off.
+4. **For today.** With an empty rule, try Help me choose. Add a First Friday entry and step the
+   week strip to the day.
+5. **The CPDV.** Switch to it from "Aa", read a chapter of the Song of Songs and one of the
+   Gospels, then switch back.
+6. **About this book** for two or three books you know. Anything you would argue with?
+7. **Early Christian writings**: open the fold at the end of the book picker. Read Ignatius to the
+   Romans.
+8. **For times like these**: read one hard-time page and one good-time page as if you needed it.
+   Is the tone right?
+9. **The journal**: do the evening examen, then open today's journal. Does it read like a journal?
+
+### Known limitations
+
+- **Nothing here has run on a physical phone.** The tab-bar fix in particular depends on how
+  Safari behaves on an iPhone; it was checked in Chromium.
+- **With the page fixed, tapping the status bar no longer scrolls to the top** on an iPhone.
+- **The CPDV has no imprimatur**, and in two places (2 Samuel 13:39 and Psalm 43:6) it runs a verse
+  into the one before, so a note on that verse has no verse to sit beside in the CPDV.
+- **The Douay-Rheims text is still two transcriptions collated by machine and judged against the
+  Latin**, not a proofreading against the printed 1899 edition. 61 restorations are variants
+  between printings that render the Latin equally well; where the transcriptions agree against
+  the Latin (Philippians 4:13, "all these things"), the old reading was kept.
+- **The introductions are summaries**, checked once. Where scholars disagree they say so; they
+  are not the last word.
+- **The early writings are in nineteenth-century English**, as the translators left them, with
+  their occasional slips. Clement's letter lacks the passage recovered in 1873, including its great
+  prayer for all people and for rulers, and its last chapters are numbered as in that translation.
+- **The counsel is not a substitute** for a confessor, a doctor or a friend. Its crisis lines are
+  for the United States, Canada, the United Kingdom and Ireland; elsewhere it says to call the
+  local emergency number.
+- **Searching the CPDV the first time downloads every book of it** (about 5 MB), as searching the
+  Douay-Rheims always has.
+- **Saving both translations for offline use takes about 5 MB more**; Settings offers to remove
+  the one not in use.
+- Everything listed under 0.4.0 below still applies, except where this release changed it.
+
 ## 0.4.0: updates, privacy, the Mass and a list without boxes
 
 A round of polish that turned up more than polish.

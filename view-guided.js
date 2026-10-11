@@ -3,12 +3,12 @@
 // with a passage of Scripture, and the evening examen.
 
 import { book, formatSpan, verseId, verseOrder, versesFor } from './bible.js';
-import { dayFor, go, goBack, readingsOn, refresh, today } from './context.js';
+import { go, goBack, readingsOn, refresh, today } from './context.js';
 import { db, saveSetting, settings } from './db.js';
 import { JOURNAL_FIELDS, hasContent, journalEntry, saveJournal } from './journal.js';
 import { guide as findGuide, markByReference } from './practices.js';
 import { findPrayer, prayerData, renderPrayer } from './prayers.js';
-import { add, celebrate, choice, clear, el, icon, inTurn, keepSaved, toast } from './ui.js';
+import { add, choice, clear, el, icon, inTurn, keepSaved, saveState, scrollToPosition, toast } from './ui.js';
 import { devotionStage, keepAwake, showStepBar } from './view-devotion.js';
 
 // When the day has no Gospel in the app, Lectio falls back to the vine and the branches.
@@ -30,18 +30,21 @@ function stepDots(index, total) {
 function journalField(entry, field, label, placeholder) {
   const area = el('textarea', { class: 'field note-field', rows: '4', placeholder, 'aria-label': label });
   area.value = entry[field] || '';
+  const [, heading] = JOURNAL_FIELDS.find(([name]) => name === field) || [field, label];
+  const status = saveState(entry[field] ? 'saved' : 'new');
   const saver = keepSaved(async () => {
     const written = area.value.trim();
     if (written === (entry[field] || '')) return;
     await saveJournal(entry.id, { [field]: written });
     // Only once it is safely kept does the entry in hand count it as written.
     entry[field] = written;
-  }, 600);
+  }, 600, { onState: status.show });
   area.addEventListener('input', () => saver.touch());
   area.addEventListener('blur', () => saver.flush());
   return {
     node: el('label', { class: 'field-label journal-field' }, label, area,
-      el('span', { class: 'muted small', text: 'Kept in your journal for today.' })),
+      el('span', { class: 'muted small', text: `Kept in today’s journal under “${heading}”.` }),
+      status.node),
     // Called when the step is left: saves what is there and stops listening.
     flush: () => { saver.touch(); return saver.stop(); },
   };
@@ -151,7 +154,7 @@ export async function renderLectio(container, params) {
         el('div', { class: 'field-label' }, 'Each step', pace),
         renderOpening());
       showStepBar(bar, { canBack: false, onBack: () => {}, onNext: () => move(1), nextLabel: 'Begin' });
-      window.scrollTo(0, 0);
+      scrollToPosition(0);
       return;
     }
     const step = steps[index];
@@ -170,7 +173,7 @@ export async function renderLectio(container, params) {
       startTimer(next),
       step.passage ? passageNode() : null,
       step.note ? note : null);
-    window.scrollTo(0, 0);
+    scrollToPosition(0);
   }
 
   function renderOpening() {
@@ -203,7 +206,6 @@ export async function renderLectio(container, params) {
     clearInterval(timer);
     await saveResponse();
     await markByReference('devotion:lectio', today());
-    celebrate({ season: dayFor(today()).season, count: 10 });
     clear(bar);
     clear(stage).append(el('section', { class: 'card finished-card' },
       el('h2', { class: 'card-heading large', text: 'Thanks be to God' }),
@@ -272,7 +274,7 @@ export async function renderExamen(container) {
           journalToggle,
           el('span', { text: 'Offer to write in my journal' })));
       showStepBar(bar, { canBack: false, onBack: () => {}, onNext: () => move(1), nextLabel: 'Begin' });
-      window.scrollTo(0, 0);
+      scrollToPosition(0);
       return;
     }
     const step = steps[index];
@@ -297,7 +299,7 @@ export async function renderExamen(container) {
       onNext: () => (last ? finish() : move(1)),
       nextLabel: last ? 'Amen' : steps[index + 1].title,
     });
-    window.scrollTo(0, 0);
+    scrollToPosition(0);
   });
 
   function move(delta) {
@@ -310,7 +312,6 @@ export async function renderExamen(container) {
     const kept = hasContent(entry);
     // The journal is only ticked on the daily list if something was written in it.
     await markByReference(kept ? ['devotion:examen', 'journal'] : 'devotion:examen', date);
-    celebrate({ season: dayFor(date).season, count: 10 });
     clear(bar);
     clear(stage).append(el('section', { class: 'card finished-card' },
       el('h2', { class: 'card-heading large', text: 'Into thy hands, O Lord' }),
@@ -392,7 +393,7 @@ export async function renderGuide(container, { id }) {
         el('p', { class: 'devotion-guide', text: guide.about }),
         guide.timer ? el('div', { class: 'field-label' }, 'A quiet timer for the silent steps', paceChoice()) : null);
       showStepBar(bar, { canBack: false, onBack: () => {}, onNext: () => move(1), nextLabel: 'Begin' });
-      window.scrollTo(0, 0);
+      scrollToPosition(0);
       return;
     }
     const step = steps[index];
@@ -435,7 +436,7 @@ export async function renderGuide(container, { id }) {
       field = journalField(entry, step.journal, step.journalLabel || 'For today', placeholder);
       add(stage, field.node);
     }
-    window.scrollTo(0, 0);
+    scrollToPosition(0);
   });
 
   function move(delta) {
@@ -447,7 +448,6 @@ export async function renderGuide(container, { id }) {
     await leaveStep();
     const wrote = steps.some((step) => step.journal) && hasContent(entry);
     await markByReference(wrote ? [`guide:${guide.id}`, 'journal'] : `guide:${guide.id}`, date);
-    celebrate({ season: dayFor(date).season, count: 10 });
     clear(bar);
     clear(stage).append(el('section', { class: 'card finished-card' },
       el('h2', { class: 'card-heading large', text: 'Thanks be to God' }),

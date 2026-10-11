@@ -140,6 +140,32 @@ export function scheduleLabel(entry) {
 }
 
 /**
+ * A short word for why an entry is on the list today, for one that does not
+ * come every day: "First Friday", "Fridays", "Yearly", "In Lent". Null for an
+ * entry that comes every day of the year.
+ */
+export function occasionLabel(entry) {
+  const repeat = entry.repeat;
+  const limit = duringLabel(entry.during);
+  if (repeat && repeat.kind === 'yearly') return 'Once a year';
+  let label = null;
+  if (repeat && repeat.kind === 'monthly') {
+    if (repeat.weekday !== undefined && repeat.nth !== undefined) {
+      const which = (ORDINALS.find(([value]) => value === repeat.nth) || ORDINALS[0])[1];
+      label = `${which} ${WEEKDAY_NAMES[repeat.weekday]}`;
+    } else {
+      label = 'Once a month';
+    }
+  } else if (entry.weekdays && !entry.weekdays.every(Boolean)) {
+    const days = entry.weekdays.map((on, index) => (on ? index : -1)).filter((index) => index >= 0);
+    label = days.length === 1 ? `${WEEKDAY_NAMES[days[0]]}s` : 'Some days';
+  }
+  if (!limit) return label;
+  const during = limit.charAt(0).toUpperCase() + limit.slice(1);
+  return label ? `${label}, ${limit}` : during;
+}
+
+/**
  * The next date on or after `from` on which an entry falls, or null if none
  * is found within two years.
  */

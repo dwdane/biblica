@@ -1,24 +1,50 @@
 // view-today.js
-// The Today screen: the liturgical day, the week at a glance, the reader's
-// daily prayers, the Mass readings, and where they left off in the Bible and
-// in any plans.
+// The Today screen: the liturgical day and the week at a glance, then the
+// cards the reader has chosen, in the order they have chosen. The
+// arrangement lives in settings; see dashboard.js.
 
 import { addDays, weekOf } from './calendar.js';
 import { book, chapterTitle, formatSpan, verseText, verseId } from './bible.js';
-import { dayFor, go, longDate, readingsOn, today, typeLabel } from './context.js';
+import { dayFor, go, longDate, readingsOn, refresh, today, typeLabel } from './context.js';
+import { cardInfo, moveCard, setCardOn, todayLayout } from './dashboard.js';
 import { eventsOn, kindName, obligationFor } from './days.js';
 import { db, saveSetting, settings } from './db.js';
+import { hasContent, JOURNAL_FIELDS, journalEntry } from './journal.js';
 import { patronsOn, roleLabel } from './patrons.js';
 import { allProgress, doneCount, loadPlans, nextDay } from './plans.js';
-import { add, el, icon } from './ui.js';
+import { aspirationFor } from './prayers.js';
+import { add, clear, el, icon, openSheet } from './ui.js';
 import { dailyCard } from './view-daily.js';
+import { intentionsSheet } from './view-intentions.js';
 
 const DAY_LETTERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** The reader's arrangement of Today, or the usual one. */
+function layout() {
+  return todayLayout(settings().todayCards, { showOnThisDay: settings().showOnThisDay });
+}
 
 export async function render(container, { date }) {
   const current = today();
   const iso = date || current;
   const { day, readings, masses, title, approximate } = readingsOn(iso);
+
+  // Each card by id; a card with nothing to say today gives null and is left out.
+  const builders = {
+    rule: () => dailyCard(iso),
+    sunday: () => sundayCard(day, iso),
+    readings: () => readingsCard(iso, day, readings, masses, title, approximate),
+    saints: () => patronCard(day),
+    aspiration: () => aspirationCard(iso),
+    intentions: () => intentionsCard(),
+    journal: () => journalCard(iso, current),
+    help: () => helpCard(),
+    history: () => historyCard(iso),
+    continue: () => continueCard(),
+    plans: () => plansCard(),
+  };
+  const shown = layout().filter((item) => item.on && builders[item.id]);
+  const cards = await Promise.all(shown.map((item) => builders[item.id]()));
 
   add(container,
     el('header', { class: 'app-header' },
@@ -27,13 +53,57 @@ export async function render(container, { date }) {
     welcomeCard(),
     hero(day, iso, current),
     weekStrip(iso, current),
-    await patronCard(day),
-    await dailyCard(iso),
-    await readingsCard(iso, day, readings, masses, title, approximate),
-    settings().showOnThisDay !== false ? historyCard(iso) : null,
-    await continueCard(),
-    await plansCard(),
+    cards,
+    el('div', { class: 'today-foot' },
+      el('button', { class: 'text-button', onclick: () => arrangeSheet() }, 'Arrange this page')),
   );
+}
+
+/**
+ * Show, hide and order the cards on Today. Changes are kept at once and the
+ * page is drawn again behind the sheet.
+ */
+export function arrangeSheet(onChange = refresh) {
+  let current = layout();
+  const listNode = el('div', { class: 'arrange-list' });
+  const save = async (next, focusId, which) => {
+    current = next;
+    await saveSetting('todayCards', current);
+    draw();
+    // The button pressed is drawn anew; keep the reader's place on it, or, if the card
+    // has reached the top or the bottom, on the button that moves it back.
+    const row = focusId ? listNode.querySelector(`[data-card="${focusId}"]`) : null;
+    if (row) {
+      const other = { up: 'down', down: 'up' }[which];
+      const target = [which, other].map((act) => act && row.querySelector(`[data-act="${act}"]`)).find((node) => node && !node.disabled);
+      if (target) target.focus({ preventScroll: true });
+    }
+  };
+  function draw() {
+    clear(listNode);
+    current.forEach((item, index) => {
+      const info = cardInfo(item.id);
+      const toggle = el('input', { type: 'checkbox', id: `card-${item.id}`, dataset: { act: 'toggle' } });
+      toggle.checked = item.on;
+      toggle.addEventListener('change', () => save(setCardOn(current, item.id, toggle.checked), item.id, 'toggle'));
+      add(listNode, el('div', { class: `arrange-row${item.on ? '' : ' off'}`, dataset: { card: item.id } },
+        el('label', { class: 'arrange-text', for: `card-${item.id}` },
+          el('span', { class: 'row-title', text: info.label }),
+          el('span', { class: 'row-sub', text: info.about })),
+        el('div', { class: 'arrange-tools' },
+          el('button', { class: 'icon-button small', 'aria-label': `Move ${info.label} up`, disabled: index === 0, dataset: { act: 'up' }, onclick: () => save(moveCard(current, item.id, -1), item.id, 'up') }, icon('up', 18)),
+          el('button', { class: 'icon-button small', 'aria-label': `Move ${info.label} down`, disabled: index === current.length - 1, dataset: { act: 'down' }, onclick: () => save(moveCard(current, item.id, 1), item.id, 'down') }, icon('down', 18)),
+          el('span', { class: 'switch' }, toggle, el('span', { class: 'switch-track', 'aria-hidden': 'true' })))));
+    });
+  }
+  draw();
+  openSheet('Arrange Today', (close) => [
+    el('p', { class: 'muted small', text: 'The day itself is always at the top. Below it, show what helps you and leave out what does not. Cards with nothing to say on a given day stay out of the way by themselves.' }),
+    listNode,
+    el('div', { class: 'button-row spread' },
+      el('button', { class: 'button quiet', onclick: async () => { await saveSetting('todayCards', null); current = layout(); draw(); } }, 'The usual arrangement'),
+      el('button', { class: 'button', onclick: close }, 'Done')),
+  ], { tall: true, onClose: onChange });
 }
 
 /**
@@ -181,29 +251,31 @@ async function preview(reading) {
 
 async function continueCard() {
   const place = settings().lastPlace;
+  // Reading plans have a card of their own only while one is followed; until then, a quiet way in.
+  const following = (await allProgress()).size > 0;
+  const plansLink = following ? null : el('div', { class: 'daily-footer' },
+    el('button', { class: 'text-button', onclick: () => go('#/plans') }, 'Reading plans'));
   if (!place || !book(place.book)) {
     return el('section', { class: 'card' },
       el('h3', { class: 'card-heading', text: 'The Bible' }),
-      el('p', { class: 'muted', text: 'Seventy-three books in the Douay-Rheims translation.' }),
-      el('button', { class: 'button', onclick: () => go('#/read/GEN/1') }, 'Start at Genesis'));
+      el('p', { class: 'muted', text: 'All seventy-three books of the Catholic Bible.' }),
+      el('button', { class: 'button', onclick: () => go('#/read/GEN/1') }, 'Start at Genesis'),
+      plansLink);
   }
-  return el('section', { class: 'card' },
+  return el('section', { class: 'card continue-card' },
     el('h3', { class: 'card-heading', text: 'Continue reading' }),
     el('button', { class: 'row-button', onclick: () => go(`#/read/${place.book}/${place.chapter}`) },
       el('span', { class: 'row-title', text: chapterTitle(place.book, place.chapter) }),
-      icon('forward', 20)));
+      icon('forward', 20)),
+    plansLink);
 }
 
 async function plansCard() {
   const [plans, progress] = await Promise.all([loadPlans(), allProgress()]);
   const active = plans.filter((item) => progress.has(item.id));
+  // Without a plan under way the card stays away: choosing one is in the Bible and under Prayer.
+  if (!active.length) return null;
   const card = el('section', { class: 'card' }, el('h3', { class: 'card-heading', text: 'Reading plans' }));
-  if (!active.length) {
-    add(card,
-      el('p', { class: 'muted', text: 'Read the whole Bible in a year, or the Gospels in ninety days.' }),
-      el('button', { class: 'button quiet', onclick: () => go('#/plans') }, 'Choose a plan'));
-    return card;
-  }
   for (const item of active) {
     const record = progress.get(item.id);
     const next = nextDay(item, record);
@@ -217,4 +289,65 @@ async function plansCard() {
       icon('forward', 20)));
   }
   return card;
+}
+
+/**
+ * On Sundays and holy days of obligation, a word on keeping the day. It asks
+ * nothing to be ticked off: it says what the day is for.
+ */
+function sundayCard(day, iso) {
+  const obliged = obligationFor(day).obliged;
+  if (day.weekday !== 0 && !obliged) return null;
+  const sunday = day.weekday === 0;
+  return el('section', { class: 'card sunday-card' },
+    el('h3', { class: 'card-heading', text: sunday ? 'The Lord’s day' : 'A holy day' }),
+    el('p', { text: sunday
+      ? 'Sunday is the day of the Resurrection, given for worship and for rest. Go to Mass (if illness or the care of others keeps you home, you are excused); leave aside the work that can wait; give time to God, to your family and friends, and to someone in need.'
+      : 'A day to keep as a Sunday: go to Mass, and keep the day for God and for rest as far as your duties allow.' }),
+    el('div', { class: 'daily-footer' },
+      el('button', { class: 'text-button', onclick: () => go('#/mass') }, 'Follow the Mass'),
+      el('button', { class: 'text-button', onclick: () => go(`#/day/${iso}`) }, 'About this day')));
+}
+
+/** One short prayer to carry through the day, the same all day long. */
+function aspirationCard(iso) {
+  const prayer = aspirationFor(iso);
+  if (!prayer) return null;
+  return el('button', { class: 'card card-button aspiration-card', onclick: () => go('#/pray/aspirations') },
+    el('span', { class: 'card-heading plain', text: 'A short prayer for today' }),
+    el('span', { class: 'aspiration-text', text: prayer.text }),
+    prayer.by ? el('span', { class: 'muted small', text: prayer.by }) : null);
+}
+
+/** The intentions being prayed for, with a quick way to add and change them. */
+async function intentionsCard() {
+  const active = (await db.all('intentions')).filter((item) => !item.answered).sort((a, b) => (a.created < b.created ? 1 : -1));
+  const card = el('section', { class: 'card' }, el('h3', { class: 'card-heading', text: 'Intentions' }));
+  if (active.length) {
+    add(card, el('ul', { class: 'bring-list' }, active.slice(0, 5).map((item) => el('li', { text: item.text }))));
+    if (active.length > 5) add(card, el('p', { class: 'muted small', text: `and ${active.length - 5} more` }));
+  } else {
+    add(card, el('p', { class: 'muted', text: 'Keep here the people and needs you are praying for.' }));
+  }
+  add(card, el('div', { class: 'daily-footer' },
+    el('button', { class: 'text-button', onclick: () => intentionsSheet(refresh) }, active.length ? 'Change' : 'Add an intention')));
+  return card;
+}
+
+/** Today's page of the journal: its first words if something is written, or a way in. */
+async function journalCard(iso, current) {
+  if (iso > current) return null;
+  const entry = await journalEntry(iso);
+  const written = hasContent(entry);
+  const first = written ? JOURNAL_FIELDS.map(([field]) => entry[field]).find((text) => (text || '').trim()) : '';
+  return el('button', { class: 'card card-button journal-card', onclick: () => go(`#/journal/${iso}`) },
+    el('span', { class: 'card-heading plain', text: iso === current ? 'Journal, today' : 'Journal' }),
+    el('span', { class: written ? 'journal-preview' : 'muted', text: written ? first : 'Nothing written yet. Write whatever you want to keep.' }));
+}
+
+/** The way to the counsel for hard days and good ones. */
+function helpCard() {
+  return el('button', { class: 'card card-button help-card', onclick: () => go('#/pray/help') },
+    el('span', { class: 'card-heading plain', text: 'For times like these' }),
+    el('span', { class: 'muted', text: 'When prayer is dry, after a fall, in grief or in joy: counsel from the saints.' }));
 }

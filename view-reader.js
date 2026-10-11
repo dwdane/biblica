@@ -4,14 +4,15 @@
 // Latin Vulgate beneath each verse for those who want it.
 
 import {
-  book, books, chapterTitle, formatRange, formatVerseId, loadBook, parseReference, parseVerseId,
-  verseId, verseOrder, verseText, vulgatePsalm,
+  book, books, chapterTitle, currentTranslation, formatRange, formatVerseId, loadBook, parseReference, parseVerseId,
+  TRANSLATIONS, verseId, verseOrder, verseText, vulgatePsalm,
 } from './bible.js';
-import { go } from './context.js';
+import { go, refresh } from './context.js';
 import { db, saveSetting, settings } from './db.js';
 import { addPassage, allReflections, handText, reflectionsCiting, titleOf } from './reflections.js';
 import { latinFor } from './study.js';
-import { clear, confirmSheet, copyText, el, icon, once, openSheet, toast } from './ui.js';
+import { add, clear, confirmSheet, copyText, el, icon, keepSaved, once, openSheet, saveState, toast } from './ui.js';
+import { loadShelf } from './view-early.js';
 
 const HIGHLIGHT_COLORS = ['gold', 'green', 'blue', 'rose'];
 
@@ -82,8 +83,24 @@ export async function render(container, { bookId, chapter, verse, endVerse }) {
     drawActionBar();
   }
 
+  // The CPDV names who speaks in the Song of Songs ("Bride to Chorus: ..."). The
+  // names are drawn as rubrics, apart from the words spoken: one that opens a
+  // verse stands above it, one within a verse stays in its place.
+  const speakers = bookId === 'SNG' && currentTranslation().id === 'cpdv';
+  function verseParts(text, number) {
+    const numberNode = el('sup', { class: 'verse-number', text: number });
+    if (!speakers) return [numberNode, el('span', { class: 'verse-body', text })];
+    const segments = speakerSegments(text);
+    const lead = segments.length > 1 && segments[0].speaker ? el('span', { class: 'speaker lead', text: segments[0].speaker }) : null;
+    const rest = lead ? segments.slice(1) : segments;
+    const body = el('span', { class: 'verse-body' }, rest.map((segment) => (
+      segment.speaker ? el('span', { class: 'speaker', text: `${segment.speaker} ` }) : segment.text)));
+    return [lead, numberNode, body];
+  }
+
   function drawVerses() {
     clear(textNode);
+    textNode.classList.toggle('speakers', speakers);
     verses.forEach((text, index) => {
       if (!text) return;
       const number = index + 1;
@@ -100,8 +117,7 @@ export async function render(container, { bookId, chapter, verse, endVerse }) {
           if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(number); }
         },
       },
-      el('sup', { class: 'verse-number', text: number }),
-      el('span', { class: 'verse-body', text }),
+      ...verseParts(text, number),
       state.latin && state.latin[index] ? el('span', { class: 'verse-latin', lang: 'la', text: state.latin[index] }) : null);
       textNode.append(node, ' ');
 
@@ -283,7 +299,7 @@ export async function render(container, { bookId, chapter, verse, endVerse }) {
   async function copySelection() {
     const { numbers } = selectionRange();
     const body = numbers.map((n) => verses[n - 1]).join(' ');
-    const ok = await copyText(`${body}\n${selectionLabel()} (Douay-Rheims)`);
+    const ok = await copyText(`${body}\n${selectionLabel()} (${currentTranslation().short})`);
     toast(ok ? 'Copied' : 'Copying is not available here');
     clearSelection();
   }
@@ -306,8 +322,10 @@ export async function render(container, { bookId, chapter, verse, endVerse }) {
         el('button', { class: 'icon-button', 'aria-label': 'Text settings', onclick: () => textSheet(applyTextSettings) }, icon('text', 24)))),
     el('article', { class: 'chapter' },
       el('h2', { class: 'chapter-title', text: chapterTitle(bookId, chapterNumber) }),
+      currentTranslation() !== TRANSLATIONS[0] ? el('p', { class: 'chapter-sub translation-name', text: currentTranslation().name }) : null,
       vulgate ? el('p', { class: 'chapter-sub', text: `Psalm ${vulgate} in the Vulgate and older Catholic Bibles` }) : null,
       entry.drName && chapterNumber === 1 ? el('p', { class: 'chapter-sub', text: `Called ${entry.drName} in the Douay-Rheims` }) : null,
+      chapterNumber === 1 ? el('button', { class: 'text-button book-link', onclick: () => go(`#/book/${bookId}`) }, `About ${entry.name}`) : null,
       textNode),
     el('nav', { class: 'chapter-nav' },
       previous ? el('button', { class: 'button quiet', onclick: () => go(toPath(previous)) }, chapterTitle(previous.book, previous.chapter)) : el('span'),
@@ -383,32 +401,90 @@ async function loadMarks(bookId, chapter) {
 // Sheets
 // ---------------------------------------------------------------------------
 
+/**
+ * Write or change a note on some verses. What is typed is kept as it is
+ * written, and the sheet says so; there is no Save button to forget. A note
+ * left empty when the sheet closes is not kept.
+ */
 function noteSheet(note, onDone) {
   const isNew = !note.id;
+  // What is stored, once anything has been: a new note gets its key from the first save.
+  let stored = isNew ? null : { ...note };
+  let discarded = false;
+  const status = saveState(isNew ? 'new' : 'saved');
+  const area = el('textarea', { class: 'field note-field', rows: '6', placeholder: 'What do you want to remember about this passage?', 'aria-label': 'Note' });
+  area.value = note.text || '';
+  const saver = keepSaved(async () => {
+    const text = area.value.trim();
+    // An empty note is not written; whether to remove one is decided when the sheet closes.
+    if (discarded || !text) return;
+    const now = new Date().toISOString();
+    const record = { ...(stored || note), text, order: verseOrder(note.start), updated: now, created: (stored || note).created || now };
+    const id = await db.put('notes', record);
+    stored = { ...record, id: record.id ?? id };
+  }, 700, { onState: status.show });
+  area.addEventListener('input', () => saver.touch());
+  // Words handed to a new note (coming back from "Add to a reflection instead") are not yet kept.
+  if (isNew && area.value.trim()) saver.touch();
+
+  // Closing the sheet in any way keeps what is there, or removes a note emptied of its words.
+  const finish = async () => {
+    await saver.stop();
+    if (!discarded && stored && !area.value.trim()) {
+      await db.remove('notes', stored.id);
+      stored = null;
+      toast('The empty note was removed');
+    }
+    await onDone();
+  };
+
   openSheet(`Note on ${formatRange(note.start, note.end, { short: true })}`, (close) => {
-    const area = el('textarea', { class: 'field note-field', rows: '6', placeholder: 'What do you want to remember about this passage?', 'aria-label': 'Note' });
-    area.value = note.text || '';
     setTimeout(() => area.focus(), 250);
-    const save = async () => {
-      const text = area.value.trim();
-      if (!text) { area.focus(); return; }
-      const now = new Date().toISOString();
-      const record = { ...note, text, order: verseOrder(note.start), updated: now, created: note.created || now };
-      await db.put('notes', record);
-      close();
-      toast(isNew ? 'Note saved' : 'Note updated');
-      await onDone();
-    };
     return [
       area,
+      status.node,
       el('div', { class: 'button-row' },
-        isNew ? el('button', { class: 'button quiet', onclick: close }, 'Cancel')
-          : el('button', { class: 'button danger quiet', onclick: () => { close(); confirmSheet('Delete this note?', 'The note will be removed from this device.', 'Delete note', async () => { await db.remove('notes', note.id); toast('Note deleted'); await onDone(); }); } }, 'Delete'),
-        el('button', { class: 'button', onclick: save }, 'Save note')),
+        isNew
+          ? el('button', {
+            class: 'button quiet',
+            onclick: async () => {
+              discarded = true;
+              await saver.stop();
+              if (stored) await db.remove('notes', stored.id);
+              stored = null;
+              close();
+            },
+          }, 'Discard')
+          : el('button', {
+            class: 'button danger quiet',
+            onclick: async () => {
+              // Whatever was just typed is kept first, so that changing one's mind loses nothing.
+              await saver.stop();
+              discarded = true;
+              close();
+              confirmSheet('Delete this note?', 'The note will be removed from this device.', 'Delete note', async () => {
+                await db.remove('notes', note.id);
+                toast('Note deleted');
+                await onDone();
+              }, { onCancel: onDone });
+            },
+          }, 'Delete'),
+        el('button', { class: 'button', onclick: close }, 'Done')),
       // Whatever has been typed goes along: it becomes part of the reflection chosen.
-      isNew ? el('button', { class: 'text-button', onclick: () => { const words = area.value; close(); reflectionSheet(note.start, note.end, onDone, words); } }, 'Add to a reflection instead') : null,
+      isNew ? el('button', {
+        class: 'text-button',
+        onclick: async () => {
+          const words = area.value;
+          discarded = true;
+          await saver.stop();
+          if (stored) await db.remove('notes', stored.id);
+          stored = null;
+          close();
+          reflectionSheet(note.start, note.end, onDone, words);
+        },
+      }, 'Add to a reflection instead') : null,
     ];
-  });
+  }, { onClose: () => { if (!discarded) finish(); } });
 }
 
 /**
@@ -487,8 +563,38 @@ function linkSheet(start, end, onDone) {
   });
 }
 
+// A speaker's name as the CPDV writes it in the Song of Songs, with the colon
+// and space after it; the name alone is captured.
+// (Written without a lookbehind, which Safari before iOS 16.4 cannot parse.)
+const SPEAKER = /(^|\s)((?:Bride|Groom|Chorus)(?: to (?:Bride|Groom|Chorus)(?: and (?:Bride|Groom))?)?): /g;
+
+/** A verse cut into what is spoken ({ text }) and who speaks it ({ speaker }), in order. */
+function speakerSegments(text) {
+  const segments = [];
+  let last = 0;
+  SPEAKER.lastIndex = 0;
+  for (let match = SPEAKER.exec(text); match; match = SPEAKER.exec(text)) {
+    const nameStart = match.index + match[1].length;
+    if (nameStart > last) segments.push({ text: text.slice(last, nameStart) });
+    segments.push({ speaker: match[2] });
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) segments.push({ text: text.slice(last) });
+  return segments;
+}
+
 function textSheet(onChange) {
-  openSheet('Text', () => {
+  openSheet('Text', (close) => {
+    const translationChoice = el('div', { class: 'segmented' }, TRANSLATIONS.map((item) => el('button', {
+      class: `segment${currentTranslation().id === item.id ? ' on' : ''}`,
+      onclick: async () => {
+        if (currentTranslation().id === item.id) return;
+        await saveSetting('translation', item.id);
+        close();
+        // The chapter is drawn again in the translation chosen.
+        refresh();
+      },
+    }, item.short)));
     const size = el('input', { type: 'range', min: '15', max: '28', step: '1', value: String(settings().textSize), 'aria-label': 'Text size', class: 'slider' });
     const sample = el('span', { class: 'slider-value', text: `${settings().textSize}` });
     size.addEventListener('input', async () => {
@@ -512,11 +618,12 @@ function textSheet(onChange) {
       onChange();
     });
     return [
+      el('div', { class: 'setting-row' }, el('span', { text: 'Translation' }), translationChoice),
       el('label', { class: 'setting-row' }, el('span', { text: 'Size' }), size, sample),
       el('div', { class: 'setting-row' }, el('span', { text: 'Verses' }),
         el('div', { class: 'segmented' }, layout('lines', 'One per line'), layout('flow', 'Running text'))),
       el('label', { class: 'setting-row check-row', for: 'text-latin' },
-        el('span', { class: 'setting-text' }, el('span', { text: 'Latin beneath each verse' }), el('span', { class: 'muted small', text: 'The Clementine Vulgate, from which the Douay-Rheims was made.' })),
+        el('span', { class: 'setting-text' }, el('span', { text: 'Latin beneath each verse' }), el('span', { class: 'muted small', text: 'The Clementine Vulgate, the Latin both translations were made from.' })),
         latin),
     ];
   });
@@ -537,7 +644,9 @@ export function bookPicker(currentBook, currentChapter) {
     function showChapters(entry) {
       clear(listNode);
       listNode.append(
-        el('button', { class: 'chip-button', onclick: () => showBooks('') }, 'All books'),
+        el('div', { class: 'picker-actions' },
+          el('button', { class: 'chip-button', onclick: () => showBooks('') }, 'All books'),
+          el('button', { class: 'chip-button', onclick: () => { close(); go(`#/book/${entry.id}`); } }, `About ${entry.name}`)),
         el('h3', { class: 'picker-group', text: entry.name }),
         el('div', { class: 'chapter-grid' }, entry.chapters.map((_, index) => el('button', {
           class: `chapter-cell${entry.id === currentBook && index + 1 === currentChapter ? ' current' : ''}`,
@@ -565,6 +674,31 @@ export function bookPicker(currentBook, currentChapter) {
         }, el('span', { text: entry.name }), entry.drName ? el('span', { class: 'picker-alt', text: entry.drName }) : null));
       }
       if (!any) listNode.append(el('p', { class: 'muted', text: 'No book has that name.' }));
+      if (!wanted) listNode.append(earlyShelf());
+    }
+
+    // After the Bible, and kept apart from it: the earliest writings of the Church.
+    function earlyShelf() {
+      const rows = el('div', { class: 'picker-early-list' });
+      const shelfNode = el('details', { class: 'picker-early' },
+        el('summary', {},
+          el('span', { class: 'picker-early-title', text: 'Early Christian writings' }),
+          el('span', { class: 'picker-alt', text: 'Not Scripture' })),
+        el('p', { class: 'muted small', text: 'The Didache and letters of the first bishops and martyrs, from the generation after the apostles.' }),
+        rows);
+      shelfNode.addEventListener('toggle', async () => {
+        if (!shelfNode.open || rows.childElementCount) return;
+        try {
+          const { entries } = await loadShelf();
+          add(rows,
+            entries.map((entry) => el('button', { class: 'picker-book', onclick: () => { close(); go(`#/early/${entry.id}`); } },
+              el('span', { text: entry.title }), el('span', { class: 'picker-alt', text: entry.subtitle }))),
+            el('button', { class: 'text-button', onclick: () => { close(); go('#/early'); } }, 'About these writings'));
+        } catch {
+          add(rows, el('p', { class: 'muted small', text: 'They could not be loaded. Check your connection and try again.' }));
+        }
+      });
+      return shelfNode;
     }
 
     input.addEventListener('input', () => {

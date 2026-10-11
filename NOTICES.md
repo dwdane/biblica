@@ -4,8 +4,10 @@ Biblica's own code and the text written for it are released under the MIT licenc
 
 ## Texts in the public domain
 
-- **The Holy Bible, Douay-Rheims version**, in Bishop Challoner's revision (the 1899 American edition). Public domain. The text was taken from the Scrollmapper Bible databases and repaired against the eBible.org edition; one verse missing from both comes from the Unbound Bible edition in [open-bibles](https://github.com/seven1m/open-bibles).
+- **The Holy Bible, Douay-Rheims version**, in Bishop Challoner's revision (the 1899 American edition). Public domain. The text was taken from the Scrollmapper Bible databases and repaired against the eBible.org edition, with the Latin Vulgate as arbiter; one verse missing from both comes from the Unbound Bible edition in [open-bibles](https://github.com/seven1m/open-bibles).
+- **The Catholic Public Domain Version** of the Bible, translated from the Sixto-Clementine Vulgate by Ronald L. Conte Jr., who placed it in the public domain. Taken from the Scrollmapper Bible databases; the verse divisions of six chapters were corrected for this app, the words unchanged.
 - **The Clementine Vulgate**, the Latin shown beside the English. Public domain. Taken from the Scrollmapper Bible databases.
+- **Early Christian writings**: the Didache, the letter of Clement of Rome, the letters of Ignatius of Antioch, the letter and the Martyrdom of Polycarp, the Letter to Diognetus and the First Apology of Justin Martyr, in the translations of the Ante-Nicene Christian Library and the Ante-Nicene Fathers. Public domain. Gathered by the Historical Christian Faith project.
 - **The Fathers of the Church**: the nineteenth-century English translations (the Ante-Nicene Fathers, the Nicene and Post-Nicene Fathers, the Oxford Library of the Fathers and a few of the same age) and the Catena Aurea of Saint Thomas Aquinas in the edition edited by John Henry Newman. Public domain. Gathered by the Historical Christian Faith project, which dedicates its compilation to the public domain.
 - **The prayers**, in their long-established English and Latin forms. Public domain.
 - **The Order of Mass of the 1962 Roman Missal**, in Latin, with an English translation. The Latin is in the public domain; the files, including the translation, are from the Divinum Officium project (see below).
@@ -40,4 +42,4 @@ The current English translations of the Lectionary, the Liturgy of the Hours and
 
 ## Written for this project
 
-The notes on the days and seasons, the accounts of the saints, "On this day", the guides to prayer, the examination of conscience and the Mass companion's explanations were written for Biblica and fall under its MIT licence. Parts of them were written with the help of an AI system and have not all been checked against sources; the release notes (`RELEASES.md`) say which.
+The notes on the days and seasons, the accounts of the saints, "On this day", the guides to prayer, the counsel for hard and good times, the short introductions to the books of the Bible and to the early Christian writings, the examination of conscience and the Mass companion's explanations were written for Biblica and fall under its MIT licence. Parts of them were written with the help of an AI system and have not all been checked against sources; the release notes (`RELEASES.md`) say which.

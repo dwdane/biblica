@@ -8,7 +8,7 @@ import { saveSetting, settings } from './db.js';
 import { ROMAN, rosarySet, rosarySetFor, rosarySets, rosarySteps, stations } from './devotions.js';
 import { markByReference } from './practices.js';
 import { findPrayer, renderPrayer } from './prayers.js';
-import { add, celebrate, choice, clear, el, icon, inTurn, openSheet, sheetIsOpen } from './ui.js';
+import { add, choice, clear, el, icon, inTurn, openSheet, scrollToPosition, sheetIsOpen } from './ui.js';
 
 const ORDINALS = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth', 'Eleventh', 'Twelfth', 'Thirteenth', 'Fourteenth'];
 
@@ -134,7 +134,7 @@ export async function renderRosary(container, { set }) {
       onNext: () => (last ? finish() : move(1)),
       nextLabel: last ? 'Amen' : nextLabel(steps[index + 1]),
     });
-    window.scrollTo(0, 0);
+    scrollToPosition(0);
   });
 
   function nextLabel(next) {
@@ -158,7 +158,6 @@ export async function renderRosary(container, { set }) {
     finishedNow = true;
     await saveSetting('devotionProgress', null);
     await markByReference('devotion:rosary', today());
-    celebrate({ season: day.season, title: 'The Rosary', sub: group.name });
     clear(bar);
     finished(stage, group.name, 'Pray for us, O holy Mother of God, that we may be made worthy of the promises of Christ.');
   }
@@ -299,7 +298,7 @@ export async function renderStations(container) {
       onNext: () => (last ? finish() : move(1)),
       nextLabel: last ? 'Amen' : (index === 0 ? 'First station' : (index === list.length ? 'Closing prayers' : `${ORDINALS[index]} station`)),
     });
-    window.scrollTo(0, 0);
+    scrollToPosition(0);
   });
 
   async function move(delta) {
@@ -311,7 +310,6 @@ export async function renderStations(container) {
   async function finish() {
     await saveSetting('devotionProgress', null);
     await markByReference('devotion:stations', today());
-    celebrate({ symbols: ['🌿'], title: 'The Way of the Cross', sub: 'We adore thee, O Christ, and we bless thee.', count: 12 });
     clear(bar);
     finished(stage, 'The Way of the Cross', 'Because by thy holy Cross thou hast redeemed the world.');
   }

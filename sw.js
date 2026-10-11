@@ -28,16 +28,32 @@
 //
 // On every release, bump VERSION here and APP_VERSION in version.js
 // together, then run `uv run biblica-stamp` in tools/ to record the
-// fingerprints (a test fails if they are out of date). Bump TEXT_VERSION
-// only when the files under drb-, study- or fathers- change.
+// fingerprints (a test fails if they are out of date). The per-book text
+// (drb-, cpdv-, study-, fathers-, early-) is kept apart in its own
+// cache, which outlives releases. When some of those files are corrected, add
+// an entry to TEXT_CORRECTIONS with the next revision number and the folders or
+// files it touched, and leave the earlier entries in place. Bump TEXT_VERSION
+// only when the text is replaced wholesale, since a new TEXT_VERSION discards
+// everything saved for reading offline.
 
-const VERSION = '0.4.0';
+const VERSION = '0.5.0';
 const TEXT_VERSION = '1';
 
 const TEXT_CACHE = `biblica-text-flat-${TEXT_VERSION}`;
 // Requests for the per-book files are recognised by how their address begins,
 // counted from the folder the app is served from.
-const TEXT_PATHS = ['drb-', 'study-', 'fathers-'];
+const TEXT_PATHS = ['drb-', 'cpdv-', 'study-', 'fathers-', 'early-'];
+// Corrections to the per-book text since TEXT_VERSION was set, oldest first. A
+// copy kept for reading offline from before a correction is fetched again, so
+// the correction arrives without discarding the rest of what was saved. The
+// device records the last revision it has, and so catches up on every
+// correction however many releases it skips.
+const TEXT_CORRECTIONS = [
+  // 0.5.0: words lost in transcription restored, and Baruch 6:7.
+  { revision: 2, paths: ['drb-'] },
+];
+// Where the cache notes which revision its kept copies are; never a file of the site.
+const TEXT_REVISION_NOTE = 'biblica-text-revision';
 const SCOPE = new URL(self.registration.scope).pathname;
 
 const SHELL = [
@@ -49,6 +65,7 @@ const SHELL = [
   './bible.js',
   './calendar.js',
   './context.js',
+  './dashboard.js',
   './days.js',
   './db.js',
   './devotions.js',
@@ -69,11 +86,14 @@ const SHELL = [
   './updates.js',
   './version.js',
   './view-about.js',
+  './view-book.js',
   './view-confession.js',
   './view-daily.js',
   './view-day.js',
   './view-devotion.js',
+  './view-early.js',
   './view-guided.js',
+  './view-help.js',
   './view-intentions.js',
   './view-journal.js',
   './view-library.js',
@@ -95,7 +115,9 @@ const SHELL = [
   './data-books.json',
   './data-calendar.json',
   './data-days.json',
+  './data-early.json',
   './data-fathers.json',
+  './data-introductions.json',
   './data-lectionary.json',
   './data-mass.json',
   './data-onthisday.json',
@@ -108,31 +130,34 @@ const SHELL = [
 ];
 
 // <stamp> Written by `uv run biblica-stamp` (in tools/). Do not edit by hand.
-const BUILD = '1d2942a685df';
+const BUILD = 'f5a57b81c1a5';
 const DIGESTS = {
-  'app.js': 'c6432c5b3a7988f7',
-  'bible.js': '70c6b60d3f356b25',
+  'app.js': '7c8c92df4573b864',
+  'bible.js': '3f88765ca854c643',
   'calendar.js': 'd26a8868ed2fb288',
   'context.js': 'c04eeabb23568654',
-  'data-about.json': 'b61ebf131429df9a',
+  'dashboard.js': '6edd6b4f1293350e',
+  'data-about.json': 'a486fb69a3a453d1',
   'data-books.json': '8a9ca60dbc69971a',
   'data-calendar.json': '275e4c3621034b4d',
   'data-days.json': '4839bddc4047a24f',
+  'data-early.json': '8bec46de509efcb1',
   'data-fathers.json': '32b1458e7120ec78',
+  'data-introductions.json': 'ec373fef28d56f61',
   'data-lectionary.json': 'c0035be8c74410f0',
   'data-mass.json': '09fa91e0a1490e23',
   'data-onthisday.json': 'a9b67aafe076b18b',
-  'data-plans.json': 'cb0d4f7ea1c2ac0d',
-  'data-prayers.json': 'fd030f41db2a564f',
+  'data-plans.json': '2b0388dc9511b503',
+  'data-prayers.json': '7c590d0b9cc53f1e',
   'days.js': '604018c153cebb49',
-  'db.js': '6f7558e2f2154ec6',
+  'db.js': 'ba56c3aea6aa420e',
   'devotions.js': 'e4a36f6e45288a12',
   'icon-180.png': 'd5c009fac9fd5cec',
   'icon-192.png': '077fee603f608dd1',
   'icon-512.png': 'e9e10eb53cea8654',
   'icon-maskable-512.png': 'bc06081eb1965434',
   'index.html': 'fd79297816d1b2c5',
-  'journal.js': '711577c1088c4651',
+  'journal.js': 'caf228eb6e9cf80a',
   'lectionary.js': '015fd8fcca22cf5f',
   'manifest.json': '5b0dfaf63b5a8a81',
   'mass.js': '1c8157247e0d2f04',
@@ -140,39 +165,42 @@ const DIGESTS = {
   'patrons.js': 'a06e84c1d54aaa4b',
   'plans.js': '5a13397ce62afa20',
   'practices.js': '35eae0e0d49b34ed',
-  'prayers.js': '8c68bd036e76cede',
+  'prayers.js': 'cc2d43d7ee15c9e9',
   'reflections.js': '87eb5ad2500efa58',
-  'schedule.js': '012816d7c2c7db60',
-  'search.js': '7c082e7001494d5d',
-  'storage.js': '9cb86059ca04a0d1',
-  'study.js': 'c2762ec86926282f',
-  'styles.css': 'b7d227af7f737798',
-  'ui.js': '040272ff4b945918',
-  'updates.js': 'f6bc69f0e6bcd76f',
-  'version.js': '5b7d399642a2d1fa',
+  'schedule.js': '70788fa6bf01ac89',
+  'search.js': 'a40f5849800af069',
+  'storage.js': 'bdcf4250c18ff75f',
+  'study.js': '341bfcaea5a623bd',
+  'styles.css': '868ad82731379060',
+  'ui.js': '6f2d021247ca602f',
+  'updates.js': 'a64cd7e17ca98236',
+  'version.js': 'f7e9e071e815f968',
   'view-about.js': '95e498a839851247',
-  'view-confession.js': 'eb79f3b0e90c0476',
-  'view-daily.js': 'bb277baa30cb24e0',
+  'view-book.js': '59608164cf81f9e7',
+  'view-confession.js': 'f920292af2fc9811',
+  'view-daily.js': '95b07165434f4fc4',
   'view-day.js': '27764378c634f83a',
-  'view-devotion.js': 'ffb625adaa8f5f62',
-  'view-guided.js': 'de614938813394cd',
-  'view-intentions.js': 'cb998b9e1925042c',
-  'view-journal.js': '09d32c4e875d183b',
+  'view-devotion.js': '2b42ee8a3871d176',
+  'view-early.js': '80057ba07dbac91e',
+  'view-guided.js': '7035ebec27672432',
+  'view-help.js': '9944d6a8eef25969',
+  'view-intentions.js': '01b32607fca9258d',
+  'view-journal.js': 'd5fa754d93f3b7d5',
   'view-library.js': '68d3590219adfc47',
-  'view-mass.js': 'c084f42c9f89c7e4',
+  'view-mass.js': 'add179512a2b8620',
   'view-notes.js': '73838becfff7440c',
-  'view-novenas.js': '16b406f2e3ba6ba3',
+  'view-novenas.js': '0fcf46df70071a3a',
   'view-office.js': 'b36b26c059b7080a',
-  'view-passage.js': 'f322f2819b1baf73',
+  'view-passage.js': 'a75530751d5aecb5',
   'view-plans.js': '7f435016f271b7fe',
-  'view-pray.js': '04dc9143df80bd32',
-  'view-reader.js': 'b54cb56caa5d546d',
-  'view-reflection.js': '0c19a8c77324ebf7',
-  'view-saints.js': 'cbb28b6c3eae36a3',
-  'view-search.js': '7df7aced80d348d5',
-  'view-settings.js': '8ba5d26a57494bd4',
+  'view-pray.js': '820b212bb73d1108',
+  'view-reader.js': '51295e7378749879',
+  'view-reflection.js': '25c35d804473a759',
+  'view-saints.js': 'e6e2a744807b2850',
+  'view-search.js': 'f7c1863fad5a8612',
+  'view-settings.js': '7026171c7a50932b',
   'view-study.js': '2c8197682e345650',
-  'view-today.js': 'f0f71c39b3db6397',
+  'view-today.js': 'd9e640c2b986c286',
 };
 // </stamp>
 
@@ -273,6 +301,43 @@ self.addEventListener('activate', (event) => {
 });
 
 /**
+ * Fetch again every kept text file that a correction since this device's last
+ * revision touched. Asked for by the page once it is running, so that taking
+ * over is never held up by downloads. A copy that cannot be fetched now stays
+ * as it is, and the revision is not recorded, so the next start tries again.
+ */
+async function refreshCorrectedText() {
+  const cache = await caches.open(TEXT_CACHE);
+  const note = new URL(TEXT_REVISION_NOTE, self.registration.scope).href;
+  const kept = await cache.match(note);
+  const done = kept ? Number(await kept.text()) || 1 : 1;
+  const due = TEXT_CORRECTIONS.filter((item) => item.revision > done);
+  if (!due.length) return;
+  const wanted = due[due.length - 1].revision;
+  const paths = due.flatMap((item) => item.paths);
+  for (const request of await cache.keys()) {
+    const address = new URL(request.url);
+    const local = address.pathname.startsWith(SCOPE) ? address.pathname.slice(SCOPE.length) : address.pathname;
+    if (!paths.some((path) => local.startsWith(path))) continue;
+    try {
+      // Asked for under an address of its own, past any cache between here and the site.
+      const fresh = new URL(address.href);
+      fresh.searchParams.set('revision', String(wanted));
+      const response = await fetch(fresh.href, { cache: 'no-cache' });
+      if (!response.ok || response.type !== 'basic') return;
+      // A file from before the correction means the site has not been given the corrected
+      // text yet: stop, record nothing, and try again at a later start.
+      const book = await response.clone().json();
+      if (!(book.revision >= wanted)) return;
+      await cache.put(request, response);
+    } catch {
+      return;
+    }
+  }
+  await cache.put(note, new Response(String(wanted)));
+}
+
+/**
  * Answer from the cache; failing that from the network. Only the per-book
  * text is kept as it is fetched (`keep`). The app's own files are kept by
  * fetchShell() alone, which checks each one: a file fetched here has not been
@@ -305,6 +370,13 @@ self.addEventListener('message', (event) => {
   if (!reply) return;
   // A page asking which release this worker is.
   if (type === 'biblica:version') reply.postMessage({ version: VERSION, build: BUILD });
+  // A page that has started, asking for corrected text to be brought in.
+  if (type === 'biblica:refresh-text') {
+    event.waitUntil(refreshCorrectedText().then(
+      () => reply.postMessage({ ok: true }),
+      () => reply.postMessage({ ok: false }),
+    ));
+  }
   // A page asking for the app's files to be fetched again and checked, all or none.
   if (type === 'biblica:refetch') {
     event.waitUntil(fetchShell().then(

@@ -2,25 +2,37 @@
 // What the app takes up on this device, and how to give some of it back.
 //
 // Biblica keeps exactly three kinds of thing: its own files, the Bible text
-// and study material saved for offline use, and what the reader has written.
+// (in either translation) and study material saved for offline use, and what the reader has written.
 // The first two are copies of files on the site and can never be larger than
 // those files; nothing is logged or accumulated in the background. This module
 // measures each so that Settings can show it rather than ask to be believed.
 
-import { TEXT_PREFIX } from './bible.js';
+import { TRANSLATIONS } from './bible.js';
 import { storageProtected, writtenBytes } from './db.js';
-import { FATHERS_PREFIX, STUDY_PREFIX } from './study.js';
+import { EARLY_PREFIX, FATHERS_PREFIX, STUDY_PREFIX } from './study.js';
 
 const SHELL_CACHES = 'biblica-shell-';
 const TEXT_CACHES = 'biblica-text';
 
-/** Which kind of text file a cached address is: 'bible', 'study' or null. */
-function textKind(url) {
+/** A cached address, counted from the folder the app is served from. */
+function localPath(url) {
   const path = new URL(url).pathname;
   const base = new URL('.', window.location.href).pathname;
-  const local = path.startsWith(base) ? path.slice(base.length) : path;
-  if (local.startsWith(TEXT_PREFIX)) return 'bible';
-  if (local.startsWith(STUDY_PREFIX) || local.startsWith(FATHERS_PREFIX)) return 'study';
+  return path.startsWith(base) ? path.slice(base.length) : path;
+}
+
+/** The translation a cached book belongs to, or null if it is not a book of the Bible. */
+function translationOf(url) {
+  const local = localPath(url);
+  const found = TRANSLATIONS.find((item) => local.startsWith(item.folder));
+  return found ? found.id : null;
+}
+
+/** Which kind of text file a cached address is: 'bible', 'study' or null. */
+function textKind(url) {
+  if (translationOf(url)) return 'bible';
+  const local = localPath(url);
+  if ([STUDY_PREFIX, FATHERS_PREFIX, EARLY_PREFIX].some((prefix) => local.startsWith(prefix))) return 'study';
   return null;
 }
 
@@ -34,8 +46,9 @@ async function sizeOf(cache, request) {
  *
  * @returns {Promise<object>} {
  *   app: { bytes, files },      the app's own files
- *   bible: { bytes, files },    books of the Bible saved for offline use
- *   study: { bytes, files },    Latin, cross-references and commentary saved
+ *   bible: { bytes, files },    books of the Bible saved for offline use, in either translation
+ *   translations: { drb: { bytes, files }, cpdv: { bytes, files } },  the same, by translation
+ *   study: { bytes, files },    Latin, cross-references, commentary and early writings saved
  *   written: { bytes },         everything the reader has written, and settings
  *   total: number,              the sum of the above
  *   browser: { usage, quota } | null,  the browser's own figure, where it gives one
@@ -46,6 +59,7 @@ export async function storageReport() {
   const report = {
     app: { bytes: 0, files: 0 },
     bible: { bytes: 0, files: 0 },
+    translations: Object.fromEntries(TRANSLATIONS.map((item) => [item.id, { bytes: 0, files: 0 }])),
     study: { bytes: 0, files: 0 },
     written: { bytes: 0 },
     total: 0,
@@ -58,9 +72,17 @@ export async function storageReport() {
       if (!isShell && !name.startsWith(TEXT_CACHES)) continue;
       const cache = await caches.open(name);
       for (const request of await cache.keys()) {
+        // The worker's note of which corrections the kept text has had.
+        if (request.url.endsWith('/biblica-text-revision')) continue;
         const part = isShell ? report.app : report[textKind(request.url) || 'app'];
-        part.bytes += await sizeOf(cache, request);
+        const bytes = await sizeOf(cache, request);
+        part.bytes += bytes;
         part.files += 1;
+        const translationId = isShell ? null : translationOf(request.url);
+        if (translationId) {
+          report.translations[translationId].bytes += bytes;
+          report.translations[translationId].files += 1;
+        }
       }
     }
   }
@@ -92,6 +114,27 @@ export async function removeSavedStudy() {
     const cache = await caches.open(name);
     for (const request of await cache.keys()) {
       if (textKind(request.url) === 'study' && await cache.delete(request)) removed += 1;
+    }
+  }
+  return removed;
+}
+
+/**
+ * Remove the saved books of one translation from this device, to free the
+ * room taken by a translation no longer read. They are fetched again, book by
+ * book, if it is chosen once more.
+ *
+ * @param {string} translationId 'drb' or 'cpdv'.
+ * @returns {Promise<number>} How many files were removed.
+ */
+export async function removeSavedTranslation(translationId) {
+  if (!('caches' in window)) return 0;
+  let removed = 0;
+  for (const name of await caches.keys()) {
+    if (!name.startsWith(TEXT_CACHES)) continue;
+    const cache = await caches.open(name);
+    for (const request of await cache.keys()) {
+      if (translationOf(request.url) === translationId && await cache.delete(request)) removed += 1;
     }
   }
   return removed;

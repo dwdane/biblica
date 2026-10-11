@@ -7,15 +7,15 @@
 // that on in Settings, and cleared in one step after confession.
 
 import { fromIso } from './calendar.js';
-import { go, today } from './context.js';
+import { goBack, today } from './context.js';
 import { db } from './db.js';
 import { findPrayer, prayerData, renderPrayer } from './prayers.js';
-import { add, clear, confirmSheet, el, icon, toast } from './ui.js';
+import { add, clear, confirmSheet, el, icon, keepSaved, saveState, toast } from './ui.js';
 
 const remembered = { tab: 'examine' };
 
 async function loadState() {
-  return (await db.get('conscience', 'state')) || { id: 'state', lastConfession: null, marked: {}, notes: '' };
+  return { id: 'state', lastConfession: null, marked: {}, notes: '', counsel: '', ...((await db.get('conscience', 'state')) || {}) };
 }
 
 function since(iso) {
@@ -47,6 +47,7 @@ export async function renderConfession(container) {
   function examine() {
     clear(body);
     for (const paragraph of guide.examination.intro) add(body, el('p', { class: 'devotion-guide', text: paragraph }));
+    add(body, el('button', { class: 'text-button', onclick: () => { window.location.hash = '#/pray/help/scruples'; } }, 'When your conscience will not rest'));
     add(body, el('p', { class: 'muted small', text: 'Tap a question to add it to your list for confession.' }));
     for (const section of guide.examination.sections) {
       const block = el('details', { class: 'exam-section' }, el('summary', { text: section.title }));
@@ -101,13 +102,14 @@ export async function renderConfession(container) {
       el('div', { class: 'button-row' },
         (marked.length || state.notes) ? el('button', {
           class: 'button quiet',
-          onclick: () => confirmSheet('Clear your list?', 'Everything you marked and wrote here will be erased.', 'Clear', async () => { erase(); state.marked = {}; state.notes = ''; await save(); drawTabs(); bring(); }),
+          onclick: () => confirmSheet('Clear your list?', 'Everything you marked and wrote on this list will be erased. What you kept from your confessor stays.', 'Clear', async () => { erase(); state.marked = {}; state.notes = ''; await save(); drawTabs(); bring(); }),
         }, 'Clear the list') : null,
         el('button', {
           class: 'button',
-          onclick: () => confirmSheet('Record today’s confession?', 'Today will be saved as the date of your last confession, and everything you marked and wrote here will be erased.', 'I went to confession', async () => {
+          onclick: () => confirmSheet('Record today’s confession?', 'Today will be saved as the date of your last confession, and everything you marked and wrote on this list will be erased. What you kept from your confessor stays.', 'I went to confession', async () => {
             erase();
-            state = { id: 'state', lastConfession: today(), marked: {}, notes: '' };
+            // What the confessor advised is kept from one confession to the next; the list is not.
+            state = { id: 'state', lastConfession: today(), marked: {}, notes: '', counsel: state.counsel || '' };
             await save();
             toast('Thanks be to God');
             drawLast();
@@ -115,6 +117,30 @@ export async function renderConfession(container) {
             bring();
           }),
         }, 'I went to confession today')));
+  }
+
+  /**
+   * What the confessor said, kept from one confession to the next: advice, a
+   * penance not yet done, something to ask next time. Private, like the list.
+   */
+  function counsel() {
+    clear(body);
+    const area = el('textarea', { class: 'field note-field', rows: '7', placeholder: 'Advice you were given, a penance still to do, something to ask next time', 'aria-label': 'From my confessor' });
+    area.value = state.counsel || '';
+    const status = saveState(state.counsel ? 'saved' : 'new');
+    // Kept for the screen as a whole, so that changing tab or leaving saves what was typed last.
+    const saver = keepSaved(async () => {
+      state.counsel = area.value;
+      await save();
+    }, 800, { onState: status.show });
+    counselSaver = saver;
+    area.addEventListener('input', () => saver.touch());
+    area.addEventListener('blur', () => saver.flush());
+    add(body,
+      el('p', { class: 'devotion-guide', text: 'A place to keep what your confessor tells you, so it is not forgotten by the next time. It is not erased when you record a confession.' }),
+      area,
+      status.node,
+      el('p', { class: 'muted small', text: 'This stays on this device, apart from the rest, and is left out of backups unless you choose otherwise in Settings. Biblica is no substitute for a confessor or a spiritual director: take your questions to a priest.' }));
   }
 
   async function how() {
@@ -131,18 +157,31 @@ export async function renderConfession(container) {
     add(body, list);
   }
 
-  const sections = { examine, bring, how };
+  // The advice being written, if its tab is open: saved before anything replaces it.
+  let counselSaver = null;
+  async function keepCounsel() {
+    const saver = counselSaver;
+    counselSaver = null;
+    if (saver) await saver.stop();
+  }
+
+  const sections = { examine, bring, counsel, how };
   function drawTabs() {
     // The middle tab carries a count, so the row is redrawn when it changes;
     // the focus is put back where it was.
     const focused = [...tabs.children].indexOf(document.activeElement);
     const count = markedCount();
     clear(tabs);
-    for (const [id, label] of [['examine', 'Examine'], ['bring', count ? `My list ${count}` : 'My list'], ['how', 'How to confess']]) {
+    for (const [id, label] of [['examine', 'Examine'], ['bring', count ? `My list ${count}` : 'My list'], ['counsel', 'Advice'], ['how', 'How to confess']]) {
       const on = remembered.tab === id;
       tabs.append(el('button', {
         class: `segment${on ? ' on' : ''}`, 'aria-pressed': on ? 'true' : 'false',
-        onclick: () => { remembered.tab = id; drawTabs(); sections[id](); },
+        onclick: async () => {
+          await keepCounsel();
+          remembered.tab = id;
+          drawTabs();
+          sections[id]();
+        },
       }, label));
     }
     if (focused >= 0 && tabs.children[focused]) tabs.children[focused].focus({ preventScroll: true });
@@ -150,7 +189,7 @@ export async function renderConfession(container) {
 
   add(container,
     el('header', { class: 'reader-bar' },
-      el('button', { class: 'back-button', onclick: () => go('#/pray') }, icon('back'), el('span', { text: 'Prayer' }))),
+      el('button', { class: 'back-button', onclick: () => goBack('#/pray') }, icon('back'), el('span', { text: 'Back' }))),
     el('h1', { class: 'page-title', text: 'Confession' }),
     lastNode,
     tabs,
@@ -159,4 +198,5 @@ export async function renderConfession(container) {
   drawLast();
   drawTabs();
   await sections[remembered.tab]();
+  return () => keepCounsel();
 }

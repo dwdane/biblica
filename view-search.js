@@ -1,7 +1,7 @@
 // view-search.js
 // Search the whole Bible for a word or phrase.
 
-import { book, books } from './bible.js';
+import { book, books, currentTranslation, TRANSLATIONS } from './bible.js';
 import { go } from './context.js';
 import { prepare, search, splitMatches } from './search.js';
 import { clear, el } from './ui.js';
@@ -63,14 +63,14 @@ export async function render(container, { query }) {
     more.hidden = true;
     const text = input.value.trim();
     if (!text) {
-      status.textContent = 'Search every verse of the Douay-Rheims. Related forms are found together: “oak” also finds “oaks”.';
+      status.textContent = `Search every verse of the ${currentTranslation().name}. Related forms are found together: “oak” also finds “oaks”.`;
       return;
     }
     current = search(text, { scope: scope.value, exact: exact.checked });
     const count = current.results.length;
     if (!count) {
       status.textContent = scope.value === 'all'
-        ? `No verse contains “${text}”. Older spellings are common in this translation: try “shew” for “show”.`
+        ? `No verse contains “${text}”.${currentTranslation() === TRANSLATIONS[0] ? ' Older spellings are common in this translation: try “shew” for “show”.' : ''}`
         : `No verse here contains “${text}”. Try the whole Bible.`;
       return;
     }

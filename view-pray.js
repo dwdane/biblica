@@ -1,5 +1,7 @@
 // view-pray.js
-// The Pray tab: a plain directory of everything to do with prayer.
+// The Pray tab: a plain directory of everything to do with prayer, in the
+// order of a life of prayer: one's own rule, the day, times of prayer, the
+// sacraments, help for hard and good times, the month and the year.
 
 import { dayFor, go, readingsOn, today } from './context.js';
 import { db } from './db.js';
@@ -35,39 +37,53 @@ export async function render(container) {
   const antiphon = marianAntiphonFor(day);
   const library = listedPrayers();
   const withLatin = library.filter((prayer) => prayer.la).length;
+  const guide = (id) => guides().find((item) => item.id === id);
+  const guideRow = (id) => (guide(id) ? row(guide(id).title, guide(id).sub, `#/pray/guide/${id}`) : null);
 
-  let dailySub = 'Choose the prayers you want to keep each day';
-  if (practices.length && items.length) dailySub = `${items.length} on your list today`;
-  else if (practices.length) dailySub = 'Nothing falls on today';
+  let ruleSub = 'What you try to do each day, chosen once';
+  if (practices.length && items.length) ruleSub = `${items.length} for today`;
+  else if (practices.length) ruleSub = 'Nothing falls on today';
 
   add(container,
     el('header', { class: 'app-header' }, el('h1', { class: 'app-title', text: 'Prayer' })),
-    section('Each day', [
-      row('Daily prayers', dailySub, '#/pray/list'),
-      row('Novenas', activeNovenas ? `${activeNovenas} under way` : 'Nine days of prayer for one intention', '#/pray/novenas'),
+    section('Your rule', [
+      row('My rule of life', ruleSub, '#/pray/list'),
       row('Intentions', activeIntentions ? `${activeIntentions} you are praying for` : 'The people and needs you keep before God', '#/pray/intentions'),
       row('My saints', patrons.length ? patrons.map((item) => item.name).slice(0, 3).join(', ') : 'Your confirmation saint, your name saint, your patrons', '#/pray/saints'),
+      row('Novenas', activeNovenas ? `${activeNovenas} under way` : 'Nine days of prayer for one intention', '#/pray/novenas'),
     ]),
-    section('Devotions', [
-      row('The Rosary', rosarySetFor(day).name, '#/pray/rosary'),
+    section('Through the day', [
+      guideRow('morning'),
       row(builtInTitle(angelus), angelus === 'regina-caeli' ? 'In place of the Angelus during Easter' : 'Morning, noon and evening', `#/prayer/${angelus}`),
+      row('Short prayers', 'One at the turns of the day: the door, the desk, the kettle', '#/pray/aspirations'),
+      row('Evening examen', 'Looking back over the day with God', '#/pray/examen'),
+      row('Journal', 'A page for each day; the examen can write parts of it', '#/journal'),
+    ]),
+    section('Times of prayer', [
+      guideRow('mental-prayer'),
       row('Lectio Divina', gospel ? `Today’s Gospel, ${gospel.citation}` : 'Praying with Scripture', '#/pray/lectio'),
+      row('The Rosary', rosarySetFor(day).name, '#/pray/rosary'),
       row('Stations of the Cross', day.weekday === 5 && (day.season === 'lent' || day.season === 'holy-week') ? 'A Friday of Lent' : null, '#/pray/stations'),
       row(builtInTitle(antiphon), 'The antiphon of Our Lady for this season', `#/prayer/${antiphon}`),
-      guides().map((item) => row(item.title, item.sub, `#/pray/guide/${item.id}`)),
+      guideRow('visit'),
     ]),
-    section('The liturgy', [
+    section('The sacraments and the liturgy', [
       row('The Mass', 'Follow along: the ordinary form and the traditional Latin Mass', '#/mass'),
+      guideRow('thanksgiving'),
+      row('Confession', 'Examination of conscience, and how to confess', '#/pray/confession'),
       row('The Divine Office', 'The prayer of the hours: what it is and where to pray it', '#/pray/office'),
+    ]),
+    section('For times like these', [
+      row('Hard days and good ones', 'When prayer is dry, after a fall, in grief, in joy: counsel from the saints', '#/pray/help'),
+    ]),
+    section('The month and the year', [
+      guideRow('recollection'),
+      guideRow('year'),
     ]),
     section('Library', [
       row('Prayers', `${library.length} prayers, ${withLatin} with the Latin`, '#/pray/library'),
       row('Reading plans', 'The Bible in a year, the Gospels in ninety days', '#/plans'),
-    ]),
-    section('Conscience', [
-      row('Evening examen', 'Looking back over the day with God', '#/pray/examen'),
-      row('Journal', 'What you were thankful for, and where God was at work', '#/journal'),
-      row('Confession', 'Examination of conscience, and how to confess', '#/pray/confession'),
+      row('Early Christian writings', 'The Didache, Ignatius, Polycarp and others: not Scripture, but the first Christians’ own words', '#/early'),
     ]),
   );
 }

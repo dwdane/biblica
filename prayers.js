@@ -8,7 +8,7 @@
 //   "# "           a heading                  "@ "  a Scripture passage
 //   "> "           another prayer, by id      "- "  a litany line: "- invocation | response"
 
-import { versesFor } from './bible.js';
+import { formatSpan, versesFor } from './bible.js';
 import { db, saveSetting, settings } from './db.js';
 import { el } from './ui.js';
 
@@ -130,6 +130,7 @@ export function angelusFor(day) {
   return day.season === 'easter' ? 'regina-caeli' : 'angelus';
 }
 
+
 /**
  * The antiphon of Our Lady proper to the season: Alma Redemptoris Mater from
  * Advent to 1 February, Ave Regina Caelorum until Holy Week, Regina Caeli in
@@ -183,7 +184,10 @@ async function renderLine(line, language, depth, plain) {
   }
   if (marker === '@ ') {
     const [bookId, c1, v1, c2, v2] = rest.split(' ');
-    const verses = await versesFor(bookId, [[Number(c1), Number(v1), Number(c2), Number(v2)]]);
+    const span = [Number(c1), Number(v1), Number(c2), Number(v2)];
+    // The prayers quote the Douay-Rheims whichever translation the reader has chosen.
+    const verses = await versesFor(bookId, [span], { translation: 'drb' }).catch(() => null);
+    if (!verses) return el('p', { class: 'prayer-rubric', text: `${formatSpan(bookId, span)}: open it once with a connection to keep it on this device.` });
     return el('div', { class: 'prayer-scripture' }, verses.map((verse) => el('p', { class: 'prayer-line', text: verse.text })));
   }
   if (marker === '> ') {
@@ -269,4 +273,37 @@ export function plainText(prayer) {
   return [prayer.title, prayer.latin || '', ...(prayer.en || []).flat(), ...(prayer.la || []).flat()]
     .join(' ')
     .toLowerCase();
+}
+
+// ---------------------------------------------------------------------------
+// Short prayers, counsel for times of life, and rules to start from
+// ---------------------------------------------------------------------------
+
+/** The short prayers to carry through the day: [{ text, by, ref }]. */
+export function aspirations() {
+  const data = prayerData();
+  return data && data.aspirations ? data.aspirations : [];
+}
+
+/**
+ * The short prayer for a date: the same all day, a different one each day,
+ * going through the list in order so that none comes round twice too soon.
+ */
+export function aspirationFor(iso) {
+  const list = aspirations();
+  if (!list.length) return null;
+  const days = Math.floor(Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) / 86400000);
+  return list[((days % list.length) + list.length) % list.length];
+}
+
+/** Counsel from the saints for hard times and good ones: [{ id, kind, title, ... }]. */
+export function helpTopics() {
+  const data = prayerData();
+  return data && data.help ? data.help : [];
+}
+
+/** Rules of life to start from, by state of life: [{ id, title, sub, entries }]. */
+export function startingRules() {
+  const data = prayerData();
+  return data && data.rules ? data.rules : [];
 }

@@ -1,31 +1,45 @@
 // view-daily.js
-// The daily prayer list: the card on Today, the screen for arranging the
-// list, and the month view for looking back.
+// The reader's rule of life: the card on Today, the screen for arranging
+// it, a way to start from a rule suited to one's state of life, and the
+// month view for looking back.
 //
-// The card is a list of what the reader means to pray today, each a tap
-// away. It has no boxes to tick: a prayer is not a task. When something has
-// been prayed (the app notices when a devotion is finished, and the reader
-// can say so for anything prayed away from the phone) a quiet word appears
-// beside it, unless the reader has turned that off in Settings.
+// The card is a quick way into what the reader tries to do today: every
+// day, and on the days some things fall (a first Friday, a feast). It has no
+// boxes to tick, because a prayer is not a task. A quiet word beside what
+// has been prayed is there only for those who turn it on in Settings.
 
-import { dayFor, go, monthName, today } from './context.js';
+import { dayFor, go, monthName, refresh, today } from './context.js';
 import { saveSetting, settings } from './db.js';
 import { setNovenaPrayed } from './novenas.js';
 import { loadPlans, allProgress } from './plans.js';
 import {
   DEVOTION_NAMES, TIMES, currentPractices, endPractice, guides, itemsFor, monthHistory, savePractice, setDone, titleFor,
 } from './practices.js';
-import { listedPrayers, ownPrayers } from './prayers.js';
+import { listedPrayers, ownPrayers, startingRules } from './prayers.js';
 import {
-  MONTH_NAMES, ORDINALS, SEASON_CHOICES, WEEKDAY_NAMES, nextOccurrence, ordinal, ruleProblem, scheduleLabel,
+  MONTH_NAMES, ORDINALS, SEASON_CHOICES, WEEKDAY_NAMES, nextOccurrence, occasionLabel, ordinal, ruleProblem, scheduleLabel,
 } from './schedule.js';
 import { add, choice, clear, el, icon, once, openSheet, toast } from './ui.js';
+import { intentionsSheet } from './view-intentions.js';
 
 const DAY_INITIALS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** Whether the reader wants a quiet mark beside what has been prayed. */
-const marksOn = () => settings().dailyMarks !== false;
+const marksOn = () => settings().dailyMarks === true;
+
+/** A small picture for what an entry is, so the card reads as a set of ways in, not a list of tasks. */
+function kindIcon(item) {
+  if (item.novena) return 'star';
+  const [kind, name] = (item.practice && item.practice.ref ? item.practice.ref : '').split(':');
+  if (kind === 'devotion') return { rosary: 'star', stations: 'cross', lectio: 'bible', examen: 'hours' }[name] || 'cross';
+  if (kind === 'guide') return 'hours';
+  if (kind === 'journal') return 'edit';
+  if (kind === 'readings') return 'bible';
+  if (kind === 'plan') return 'plans';
+  if (kind === 'prayer') return 'cross';
+  return /mass/i.test(item.title) ? 'mass' : 'today';
+}
 
 // Where on the list a newly added entry most naturally sits.
 const DEFAULT_TIME = {
@@ -62,32 +76,36 @@ async function drawCard(card, iso) {
   const day = dayFor(iso);
   const items = await itemsFor(iso, day);
   const future = iso > today();
+  const redraw = () => drawCard(card, iso);
   clear(card);
+
+  const head = (editLabel = 'Edit') => el('div', { class: 'card-head' },
+    el('h3', { class: 'card-heading', text: iso === today() ? 'For today' : 'For this day' }),
+    el('button', { class: 'text-button small', onclick: () => go('#/pray/list') }, editLabel));
 
   if (!items.length) {
     const haveList = (await currentPractices()).length > 0;
     if (haveList) {
-      add(card,
-        el('h3', { class: 'card-heading', text: 'Daily prayers' }),
-        el('p', { class: 'muted', text: 'Nothing on your list falls on this day.' }),
-        el('div', { class: 'daily-footer' }, el('button', { class: 'text-button', onclick: () => go('#/pray/list') }, 'Edit list')));
+      add(card, head(), el('p', { class: 'muted', text: 'Nothing from your rule of life falls on this day.' }), footer([]));
       return true;
     }
     if (settings().hideDailySetup) return false;
     add(card,
-      el('h3', { class: 'card-heading', text: 'Daily prayers' }),
-      el('p', { class: 'muted', text: 'Choose the prayers you want to keep each day, and they will be here when you open the app.' }),
+      el('h3', { class: 'card-heading', text: 'Your rule of life' }),
+      el('p', { text: 'What do you try to do each day? Saint Francis de Sales advises a few practices that fit your state of life, chosen once and kept: an offering in the morning, a time of prayer, a look back at night. Choose yours, and they will be here each day, a tap away.' }),
       el('div', { class: 'button-row' },
-        el('button', { class: 'button quiet', onclick: async () => { await saveSetting('hideDailySetup', true); card.remove(); } }, 'Not now'),
-        el('button', { class: 'button', onclick: () => go('#/pray/list') }, 'Choose prayers')));
+        el('button', { class: 'button quiet', onclick: () => go('#/pray/list') }, 'Choose myself'),
+        el('button', { class: 'button', onclick: () => ruleSetupSheet(refresh) }, 'Help me choose')),
+      el('div', { class: 'daily-footer' },
+        el('button', { class: 'text-button', onclick: async () => { await saveSetting('hideDailySetup', true); card.remove(); } }, 'Not now')));
     return true;
   }
 
-  add(card, el('h3', { class: 'card-heading', text: 'Daily prayers' }));
+  add(card, head());
   const groups = TIMES.map(([id, label]) => [label, items.filter((item) => item.time === id)]).filter(([, list]) => list.length);
   for (const [label, list] of groups) {
     if (groups.length > 1) add(card, el('p', { class: 'daily-time', text: label }));
-    const node = el('ul', { class: 'daily-list' });
+    const node = el('ul', { class: 'rule-list' });
     for (const item of list) node.append(row(item));
     add(card, node);
   }
@@ -96,26 +114,30 @@ async function drawCard(card, iso) {
 
   function row(item) {
     const prayed = marksOn() && item.done;
+    // Why this is here today, for what does not come every day: "First Friday", "Once a year".
+    const occasion = item.practice ? occasionLabel(item.practice) : null;
     // An entry with a page of its own opens it. One without (something the reader
-    // named, such as "Mass") has nothing to open but the note of whether it was prayed.
+    // named, such as "Mass") is a reminder, and opens nothing unless marks are on.
     const open = () => {
       if (item.path) go(item.path);
-      else if (marksOn() && !future) prayedSheet(iso, () => drawCard(card, iso));
+      else if (marksOn() && !future) prayedSheet(iso, redraw);
     };
     const plain = !item.path && (!marksOn() || future);
-    return el('li', { class: `daily-row${prayed ? ' prayed' : ''}`, dataset: { key: item.key } },
-      el(plain ? 'div' : 'button', { class: 'daily-body', onclick: plain ? null : open },
-        el('span', { class: 'daily-title', text: item.title }),
-        item.sub ? el('span', { class: 'daily-sub', text: item.sub }) : null),
-      prayed ? el('span', { class: 'daily-mark', text: 'Prayed' }) : null,
-      item.path ? el('span', { class: 'daily-go', 'aria-hidden': 'true' }, icon('forward', 18)) : null);
+    return el('li', { class: `rule-item${prayed ? ' prayed' : ''}${plain ? ' plain' : ''}`, dataset: { key: item.key } },
+      el(plain ? 'div' : 'button', { class: 'rule-body', onclick: plain ? null : open },
+        el('span', { class: 'rule-icon', 'aria-hidden': 'true' }, icon(kindIcon(item), 20)),
+        el('span', { class: 'rule-text' },
+          el('span', { class: 'daily-title', text: item.title }),
+          item.sub ? el('span', { class: 'daily-sub', text: item.sub }) : null),
+        occasion ? el('span', { class: 'rule-occasion', text: occasion }) : null,
+        prayed ? el('span', { class: 'daily-mark', text: 'Prayed' }) : null));
   }
 
   function footer(shown = []) {
     return el('div', { class: 'daily-footer' },
-      el('button', { class: 'text-button', onclick: () => go('#/pray/list') }, 'Edit list'),
+      el('button', { class: 'text-button', onclick: () => intentionsSheet(redraw) }, 'Intentions'),
       marksOn() && shown.length && !future
-        ? el('button', { class: 'text-button', onclick: () => prayedSheet(iso, () => drawCard(card, iso)) }, 'What I have prayed')
+        ? el('button', { class: 'text-button', onclick: () => prayedSheet(iso, redraw) }, 'What I have prayed')
         : null);
   }
 }
@@ -184,14 +206,77 @@ export async function renderList(container) {
   add(container,
     el('header', { class: 'reader-bar' },
       el('button', { class: 'back-button', onclick: () => go('#/pray') }, icon('back'), el('span', { text: 'Prayer' }))),
-    el('h1', { class: 'page-title', text: 'Daily prayers' }),
-    el('p', { class: 'muted page-intro', text: 'What is on this list appears on Today, on the days you choose: every day, certain weekdays, a day of the month, once a year, or only in a season. Novenas you start are added by themselves while they last.' }),
+    el('h1', { class: 'page-title', text: 'My rule of life' }),
+    el('p', { class: 'muted page-intro', text: 'What you try to do, every day and on certain days: a first Friday, a feast, the Fridays of Lent. It all appears under “For today” on Today, a tap away. Keep it small enough to keep; Saint Francis de Sales advises devotion that fits your state of life, looked over once a year. Novenas you start are added by themselves while they last.' }),
     listNode,
     el('div', { class: 'button-row spread' },
-      marksOn() ? el('button', { class: 'button quiet', onclick: () => go('#/pray/history') }, 'Looking back') : el('span', {}),
-      el('button', { class: 'button', onclick: () => addSheet(draw) }, 'Add to my list')),
+      el('button', { class: 'button quiet', onclick: () => ruleSetupSheet(draw) }, 'Help me choose'),
+      el('button', { class: 'button', onclick: () => addSheet(draw) }, 'Add')),
+    marksOn() ? el('div', { class: 'prayer-actions' }, el('button', { class: 'text-button', onclick: () => go('#/pray/history') }, 'Looking back')) : null,
   );
   await draw();
+}
+
+/**
+ * Start from a rule suited to one's state of life: choose the state, see
+ * what it suggests, untick what does not fit, and add the rest. Nothing is
+ * added until the reader says so, and nothing already on the list twice.
+ */
+export function ruleSetupSheet(onDone) {
+  const rules = startingRules();
+  openSheet('Help me choose', (close) => {
+    const body = el('div', {});
+    function chooseState() {
+      clear(body);
+      add(body,
+        el('p', { class: 'muted small', text: 'Saint Francis de Sales advises a devotion that fits your state of life: a parent’s is not a monk’s. Pick what is closest to yours; you can change anything afterwards.' }),
+        el('div', { class: 'choice-list' }, rules.map((rule) => el('button', { class: 'picker-book', onclick: () => showRule(rule) },
+          el('span', { class: 'row-text' },
+            el('span', { class: 'row-title', text: rule.title }),
+            el('span', { class: 'row-sub', text: rule.sub }))))));
+    }
+    async function showRule(rule) {
+      const existing = await currentPractices();
+      const titles = await Promise.all(rule.entries.map((entry) => (entry.title ? entry.title : titleFor(entry.ref))));
+      const boxes = [];
+      clear(body);
+      const listNode = el('div', { class: 'rule-choices' });
+      rule.entries.forEach((entry, index) => {
+        const title = titles[index];
+        const already = existing.some((item) => item.ref === entry.ref && (entry.ref !== 'custom' || item.title === title));
+        const box = el('input', { type: 'checkbox', id: `rule-${index}` });
+        box.checked = !already;
+        box.disabled = already;
+        boxes.push(box);
+        const when = scheduleLabel({ weekdays: entry.weekdays || null, repeat: entry.repeat || null });
+        add(listNode, el('label', { class: 'picker-check rule-choice', for: `rule-${index}` }, box,
+          el('span', { class: 'row-text' },
+            el('span', { class: 'row-title', text: title }),
+            el('span', { class: 'row-sub', text: already ? 'Already in your rule' : `${(TIMES.find(([id]) => id === (entry.time || 'any')) || TIMES[3])[1]} · ${when}` }))));
+      });
+      const addButton = el('button', { class: 'button' }, 'Add these');
+      addButton.addEventListener('click', once(async () => {
+        let added = 0;
+        for (const [index, entry] of rule.entries.entries()) {
+          if (!boxes[index].checked || boxes[index].disabled) continue;
+          await savePractice({ ref: entry.ref, title: titles[index], time: entry.time || 'any', weekdays: entry.weekdays || null, repeat: entry.repeat || null, during: null });
+          added += 1;
+        }
+        close();
+        toast(added ? `${added} added to your rule of life` : 'Nothing was added');
+        if (onDone) await onDone();
+      }));
+      add(body,
+        el('h3', { class: 'list-heading', text: rule.title }),
+        el('p', { class: 'muted small', text: 'Untick anything that does not fit. Each can be changed or removed later, and you can add more once these are habits.' }),
+        listNode,
+        el('div', { class: 'button-row spread' },
+          el('button', { class: 'button quiet', onclick: chooseState }, 'Back'),
+          addButton));
+    }
+    chooseState();
+    return body;
+  }, { tall: true });
 }
 
 /** Choose something to add to the list. */

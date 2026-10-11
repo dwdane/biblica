@@ -5,17 +5,19 @@
 // index to build or keep in step with the text: a search is one pass over
 // every verse with a regular expression.
 
-import { books, loadAllBooks, loadBook, verseId } from './bible.js';
+import { books, currentTranslation, loadAllBooks, loadBook, verseId } from './bible.js';
 
 let verses = null; // [{ id, book, chapter, verse, text }]
+let preparedFor = null; // the translation the verses are in
 
-/** Load every book and flatten it for scanning. Safe to call repeatedly. */
+/** Load every book of the chosen translation and flatten it for scanning. Safe to call repeatedly. */
 export async function prepare(onProgress) {
-  if (verses) return;
-  await loadAllBooks(onProgress);
+  const translationId = currentTranslation().id;
+  if (verses && preparedFor === translationId) return;
+  await loadAllBooks(onProgress, translationId);
   const flat = [];
   for (const entry of books()) {
-    const chapters = await loadBook(entry.id);
+    const chapters = await loadBook(entry.id, translationId);
     chapters.forEach((row, chapterIndex) => {
       row.forEach((text, verseIndex) => {
         if (text) {
@@ -24,7 +26,10 @@ export async function prepare(onProgress) {
       });
     });
   }
+  // Recorded only once every book has arrived: a translation that failed to load
+  // (offline) is tried again next time, and never stands in for another.
   verses = flat;
+  preparedFor = translationId;
 }
 
 const SUFFIXES = ['’s', "'s", 'eth', 'est', 'ing', 'ed', 'es', 's'];

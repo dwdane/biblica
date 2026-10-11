@@ -18,7 +18,7 @@
 // make it flicker.
 
 import { saveSetting, settings } from './db.js';
-import { el, sheetIsOpen } from './ui.js';
+import { el, scrollPosition, sheetIsOpen } from './ui.js';
 import { APP_VERSION } from './version.js';
 
 // How long the app must have gone without asking before coming back into view asks again.
@@ -341,7 +341,7 @@ function mayRestartUnasked() {
  * @param {boolean} [options.unasked=false] - The page is restarting itself, which it does only once in a while.
  */
 export function restartNow({ samePlace = true, unasked = false } = {}) {
-  keep(RESUME_KEY, samePlace ? { hash: window.location.hash, y: window.scrollY, at: Date.now() } : null);
+  keep(RESUME_KEY, samePlace ? { hash: window.location.hash, y: scrollPosition(), at: Date.now() } : null);
   if (unasked) keep(RESTARTED_KEY, Date.now());
   window.location.reload();
 }
@@ -478,5 +478,8 @@ export function watchForUpdates() {
     const serving = await installedVersion();
     if (serving && serving !== APP_VERSION) arrived();
     ask();
+    // Corrections to the Bible text kept for offline reading are brought in
+    // quietly once the app is running (see TEXT_CORRECTIONS in sw.js).
+    askWorker({ type: 'biblica:refresh-text' }, 120000);
   });
 }

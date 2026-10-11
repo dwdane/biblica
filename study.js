@@ -16,6 +16,8 @@ import { saveForOffline } from './bible.js';
 
 export const STUDY_PREFIX = 'study-';
 export const FATHERS_PREFIX = 'fathers-';
+// The early Christian writings are kept the same way, one file to a work.
+export const EARLY_PREFIX = 'early-';
 
 const studyBooks = new Map();
 const fathersBooks = new Map();

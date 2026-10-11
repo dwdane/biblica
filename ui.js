@@ -1,8 +1,6 @@
 // ui.js
 // Small building blocks shared by every screen: element creation, icons,
-// bottom sheets, toasts and the falling-symbols celebration.
-
-import { settings } from './db.js';
+// bottom sheets, toasts, saving as the reader types, and scrolling.
 
 /**
  * Create an element.
@@ -50,20 +48,29 @@ function append(node, children) {
  * `stop()` saves a last time and lets go. Both resolve to true when what was
  * written is safely kept, false when the save failed. A failed save is tried
  * again at the next chance, and the reader is told once that it failed.
+ *
+ * `onState`, if given, hears each change of state, so that the screen can
+ * say plainly whether what is on it is kept: 'waiting' (typed, to be saved
+ * in a moment), 'saving', 'saved' or 'failed'.
  */
-export function keepSaved(save, delay = 1200) {
+export function keepSaved(save, delay = 1200, { onState = null } = {}) {
   let timer = null;
   let dirty = false;
   let warned = false;
   let last = Promise.resolve(true);
+  const tell = (state) => { if (onState) onState(state); };
   const attempt = async () => {
+    tell('saving');
     try {
       await save();
+      // More may have been typed while this was being written; that is still waiting.
+      tell(dirty ? 'waiting' : 'saved');
       return true;
     } catch (error) {
       console.warn(error);
       // Still unsaved: the next pause, the next flush or leaving the screen tries again.
       dirty = true;
+      tell('failed');
       if (!warned) {
         warned = true;
         toast('This could not be saved. The device may be out of space.');
@@ -86,6 +93,7 @@ export function keepSaved(save, delay = 1200) {
   return {
     touch() {
       dirty = true;
+      tell('waiting');
       clearTimeout(timer);
       timer = setTimeout(run, delay);
     },
@@ -98,6 +106,59 @@ export function keepSaved(save, delay = 1200) {
       return run();
     },
   };
+}
+
+/**
+ * A quiet line that says whether what the reader has written is kept, for
+ * screens that save by themselves. Pass its `show` as keepSaved's onState.
+ * `initial` is what to say before anything is typed: 'saved' for something
+ * already written, or 'new' for an empty page.
+ */
+export function saveState(initial = 'saved') {
+  const words = {
+    new: 'Saved as you write',
+    waiting: 'Saving…',
+    saving: 'Saving…',
+    saved: 'Saved',
+    failed: 'Not saved yet: the device may be full. It will try again.',
+  };
+  const node = el('p', { class: 'save-state', role: 'status', 'aria-live': 'polite' });
+  const show = (state) => {
+    // A screen reader hears the line whenever it is rewritten, so it is rewritten only when the words change.
+    if ((words[state] || '') === node.textContent) {
+      node.dataset.state = state;
+      return;
+    }
+    node.dataset.state = state;
+    node.textContent = words[state] || '';
+  };
+  show(initial);
+  return { node, show };
+}
+
+// ---------------------------------------------------------------------------
+// Scrolling
+// ---------------------------------------------------------------------------
+
+/**
+ * The element the screens scroll in. The page itself never scrolls: on an
+ * iPhone, a scrolling page moves elements fixed to the bottom of the screen,
+ * such as the tab bar, a little up and down as the scroll changes direction
+ * and after the keyboard closes. Scrolling inside an element of the page
+ * leaves them where they are.
+ */
+export function scroller() {
+  return document.getElementById('scroller') || document.scrollingElement || document.documentElement;
+}
+
+/** How far the screen is scrolled. */
+export function scrollPosition() {
+  return scroller().scrollTop;
+}
+
+/** Scroll the screen to a position, at once or smoothly. */
+export function scrollToPosition(top, smooth = false) {
+  scroller().scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' });
 }
 
 /**
@@ -168,6 +229,8 @@ const ICON_PATHS = {
   settings: '<path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/>',
   back: '<path d="M14.5 5.5 8 12l6.5 6.5"/>',
   forward: '<path d="M9.5 5.5 16 12l-6.5 6.5"/>',
+  up: '<path d="M5.5 14.5 12 8l6.5 6.5"/>',
+  down: '<path d="M5.5 9.5 12 16l6.5-6.5"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
   check: '<path d="M5 12.5 10 17.5 19 7"/>',
   text: '<path d="M4 18 8.5 6.5 13 18M5.6 14.2h5.8M14.5 18l3-7.5 3 7.5M15.6 15.6h3.8"/>',
@@ -318,59 +381,14 @@ export function sheetIsOpen() {
 }
 
 /** Ask the reader to confirm something that cannot be undone. */
-export function confirmSheet(title, message, actionLabel, onConfirm) {
+export function confirmSheet(title, message, actionLabel, onConfirm, { onCancel = null } = {}) {
+  let confirmed = false;
   openSheet(title, (close) => [
     el('p', { class: 'sheet-text', text: message }),
     el('div', { class: 'button-row' },
       el('button', { class: 'button quiet', onclick: close }, 'Cancel'),
-      el('button', { class: 'button danger', onclick: () => { close(); onConfirm(); } }, actionLabel)),
-  ]);
-}
-
-// ---------------------------------------------------------------------------
-// Celebration
-// ---------------------------------------------------------------------------
-
-// What falls, by liturgical season.
-const SEASON_SYMBOLS = {
-  advent: ['✨', '🕯️'],
-  christmas: ['⭐', '✨'],
-  lent: ['🌿'],
-  'holy-week': ['🌿'],
-  triduum: ['🕊️'],
-  easter: ['🌸', '🕊️'],
-  ordinary: ['🕊️', '🌿'],
-};
-
-/**
- * A brief shower of symbols with an optional banner, marking something
- * finished. Does nothing when the reader has turned animations off; with
- * reduced motion set on the device, the banner appears without the shower.
- */
-export function celebrate({ season = 'ordinary', symbols, title, sub, count = 22 } = {}) {
-  if (!settings().animations) return;
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduced && !title) return;
-  const layer = el('div', { class: 'celebrate-layer', 'aria-hidden': 'true' });
-  if (title) {
-    layer.append(el('div', { class: 'celebrate-banner' },
-      el('div', { class: 'celebrate-title', text: title }),
-      sub ? el('div', { class: 'celebrate-sub', text: sub }) : null));
-  }
-  if (!reduced) {
-    const pool = symbols || SEASON_SYMBOLS[season] || SEASON_SYMBOLS.ordinary;
-    for (let i = 0; i < count; i += 1) {
-      const drop = el('div', { class: 'celebrate-drop', text: pool[i % pool.length] });
-      drop.style.left = `${Math.random() * 100}%`;
-      drop.style.animationDelay = `${Math.random() * 0.7}s`;
-      drop.style.animationDuration = `${1.8 + Math.random() * 1.4}s`;
-      drop.style.fontSize = `${1.2 + Math.random() * 1.4}rem`;
-      layer.append(drop);
-    }
-  }
-  document.body.append(layer);
-  setTimeout(() => layer.classList.add('fade'), title ? 2400 : 2000);
-  setTimeout(() => layer.remove(), title ? 3100 : 2700);
+      el('button', { class: 'button danger', onclick: () => { confirmed = true; close(); onConfirm(); } }, actionLabel)),
+  ], { onClose: () => { if (!confirmed && onCancel) onCancel(); } });
 }
 
 /** Copy text to the clipboard, with a fallback for older browsers. */

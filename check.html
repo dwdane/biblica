@@ -143,18 +143,22 @@
     async function checkText() {
       let books;
       let fathers;
+      let early;
       try {
         books = (await (await fetch(live('data-books.json'), fresh)).json()).books.map((book) => book.id);
         fathers = (await (await fetch(live('data-fathers.json'), fresh)).json()).books;
         fathers = Array.isArray(fathers) ? fathers : Object.keys(fathers);
+        early = (await (await fetch(live('data-early.json'), fresh)).json()).entries.flatMap((entry) => entry.works.map((work) => work.id));
       } catch {
         show('text', line('The list of books could not be read, so the text files were not checked.', 'bad'));
         return;
       }
       const kinds = [
-        ['Bible text', books.map((id) => `drb-${id}.json`)],
+        ['Bible text (Douay-Rheims)', books.map((id) => `drb-${id}.json`)],
+        ['Bible text (CPDV)', books.map((id) => `cpdv-${id}.json`)],
         ['Latin and cross-references', books.map((id) => `study-${id}.json`)],
         ['Commentary of the Fathers', fathers.map((id) => `fathers-${id}.json`)],
+        ['Early Christian writings', early.map((id) => `early-${id}.json`)],
       ];
       const nodes = [];
       for (const [name, paths] of kinds) {

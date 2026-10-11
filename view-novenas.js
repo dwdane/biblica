@@ -10,7 +10,7 @@ import {
 } from './novenas.js';
 import { DEVOTION_NAMES } from './practices.js';
 import { findPrayer, listedPrayers, ownPrayers, prayerData, renderPrayer } from './prayers.js';
-import { add, celebrate, choice, clear, confirmSheet, el, icon, once, openSheet, toast } from './ui.js';
+import { add, choice, clear, confirmSheet, el, icon, once, openSheet, toast } from './ui.js';
 
 function niceDate(iso) {
   const { year, month, day, weekday } = parts(fromIso(iso));
@@ -245,11 +245,8 @@ export async function renderNovena(container, { id }) {
         class: 'button wide',
         onclick: once(async () => {
           const updated = await setNovenaPrayed(item.id, now, true);
-          if (isFinished(updated)) {
-            celebrate({ symbols: ['🕊️', '✨', '🌿'], title: 'Novena complete', sub: updated.title, count: 30 });
-          } else {
-            celebrate({ season: day.season, title: `Day ${daysPrayed(updated)} of ${updated.days}`, sub: updated.title, count: 14 });
-          }
+          // No fanfare: the page says how many days are left, and the last day is simply thanked for.
+          if (isFinished(updated)) toast('The novena is complete. Thanks be to God.');
           refresh();
         }),
       }, `Prayed day ${currentDay(item)}`));

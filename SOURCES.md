@@ -20,6 +20,81 @@ used only to line up verse numbering and is not shipped. One verse missing from 
 files, Baruch 6:37, is supplied from the Unbound Bible edition
 ([seven1m/open-bibles](https://github.com/seven1m/open-bibles), `eng-dra.zefania.xml`, public domain).
 
+### Corrections to the Douay-Rheims (0.5)
+
+Lining the CPDV up against the Douay-Rheims verse by verse showed that the base text had lost
+words in transcription. The build now restores them from the witness, on strict conditions: the
+witness must have every word of the base verse, in order, and a short run more; the run must not
+repeat the words beside it, hold a stray letter or a bracketed reference, or be a lone article,
+"I" or "O"; and a capitalised word must also appear in the CPDV. That supplied 261 runs. An
+independent audit then judged every one against the Clementine Vulgate, from which Challoner
+translated: 167 were plainly right (among them "Lying men shall **not** be mindful of her",
+Sirach 15:8, and "**not** to come to you again in sorrow", 2 Corinthians 2:1), 61 were variants
+between printings that render the Latin equally well, and 31 had nothing behind them in the Latin
+(a word repeated from nearby, "scale **down** the walls" for *ascendite muros*, a garble). Those 31
+are refused by name (`REFUSED_INSERTIONS` in `text_build.py`), leaving 230. The build also puts
+back the Alleluia that opens fourteen psalms in the Vulgate, which the base had dropped, and the
+words of Baruch 6:7, where the base repeated verse 37 and the witness has no Baruch 6 (checked
+against the 1899 edition as transcribed at thebible.ch). Every change is listed in
+`tools/reports/text-collation.md`. Verse numbering is unchanged, so notes and highlights stay on
+their verses.
+
+Two things remain open. The two transcriptions agree with each other on readings that differ from
+the Latin in a few places that neither can settle (for example "I can do all **these** things",
+Philippians 4:13, which the base reads as "all things"); the base reading is kept. And neither has
+been collated against a printed copy of the 1899 edition.
+
+### The Catholic Public Domain Version (0.5)
+
+| File | From | Revision | Licence |
+| --- | --- | --- | --- |
+| `text/cpdv.json.xz` | scrollmapper/bible_databases, `formats/json/CPDV.json`, unchanged | `e1b254c` | Public domain (dedicated by the translator); repository MIT |
+| `text/cpdv-divisions.json` | written for this project | | MIT |
+
+The CPDV is Ronald L. Conte Jr.'s translation of the Sixto-Clementine Vulgate, completed in 2009
+and dedicated to the public domain. It has no imprimatur: no bishop has reviewed or approved it,
+as canon 825 asks of Catholic editions of Scripture, and its translator, a layman, has been
+criticised for theological opinions of his own; the translation itself reads plainly and follows
+the Latin closely. It is offered as an option for readability, never as the default, and the
+app's prayers always quote the Douay-Rheims.
+
+Because it was made from the same Latin, it shares the Douay-Rheims' chapters and almost all its
+verses. The Scrollmapper copy divides verses differently in six chapters: in the Song of Songs it
+split verses where the speaker changes (the CPDV names the speakers) and ran the ends of chapters 2,
+5, 7 and 8 together, and in 1 Thessalonians 4 and Isaiah 46 it follows other divisions.
+`cpdv-divisions.json` gives the opening words of every verse in those chapters; the build divides
+them again and stops if a single word would change. It then checks that no chapter drifts out of
+step with the Douay-Rheims (a verse whose length is far from its fellow's, or which shares more
+words with a neighbour than with its own) and that the only empty slots are the two where the
+source runs a verse into the one before (2 Samuel 13:39 and Psalm 43:6 in modern numbering). The
+five books outside the Catholic canon in the same file are left out.
+
+### Introductions to the books (0.5)
+
+`books/introductions.json` was drafted for this project from standard Catholic and scholarly
+reference works (the Catechism, Dei Verbum, the Navarre Bible, Raymond Brown's introduction, the
+Anchor Bible and similar), then checked independently, field by field: facts, balance, doctrine,
+and every key passage against the app's own text and numbering. Pinpoint references that could
+not be confirmed (Catechism paragraph numbers among them) were removed rather than risked. The
+build checks every passage is a verse of the app's text and that no field exceeds its length.
+
+### Early Christian writings (0.5)
+
+| File | From | Revision | Licence |
+| --- | --- | --- | --- |
+| `early/*.json` | [HistoricalChristianFaith/Writings-Database](https://github.com/HistoricalChristianFaith/Writings-Database), by `tools/scripts/vendor_early.py` | `117b833` | Public domain (Ante-Nicene translations; the collection is dedicated to the public domain) |
+| `early/shelf.json` | written for this project | | MIT |
+
+The texts are the translations of the Ante-Nicene Christian Library (Edinburgh, 1867–1872) as
+reissued in the American Ante-Nicene Fathers (1885–1886). The vendoring script strips the
+editors' footnote markers and notes and the collection's own boxes, and takes, for Ignatius, only
+the shorter form of each letter (the series prints the shorter and the longer, interpolated form
+side by side). Justin's First Apology keeps Hadrian's rescript, which Justin appended, and leaves
+out the letters later attributed to Antoninus Pius and Marcus Aurelius, which are forgeries. The
+translation of Clement follows the one manuscript known in the 1860s and lacks the passage
+recovered in 1873, including the great prayer of chapters 59 to 61 of modern editions. The build
+checks that every quotation in the introductions is found word for word in the text given.
+
 ### The OpenBible download
 
 The project started from the `drb.txt` file offered at openbible.com. It is not used. That file:
@@ -184,7 +259,5 @@ have not been checked.
 
 ## Worth knowing for later releases
 
-The scrollmapper repository also carries the Catholic Public Domain Version (`CPDV.json`), a
-modern-English Catholic translation released to the public domain: a candidate for a second
-translation. Haydock's commentary was looked for and not found as usable data on GitHub; it exists
+Haydock's commentary was looked for and not found as usable data on GitHub; it exists
 as scanned books and as web pages that would need to be gathered and cleaned.

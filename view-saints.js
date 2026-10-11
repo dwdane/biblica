@@ -6,7 +6,7 @@ import { calendarEntries, dayFor, go, goBack, longDate, monthName, refresh, toda
 import { celebrationAccount, celebrationNames } from './days.js';
 import { traditionalDates } from './novenas.js';
 import { ROLES, allPatrons, deletePatron, feastLabel, nextFeastOf, patron, savePatron, shortName } from './patrons.js';
-import { add, clear, confirmSheet, el, icon, keepSaved, once, openSheet, toast } from './ui.js';
+import { add, clear, confirmSheet, el, icon, keepSaved, once, openSheet, saveState, toast } from './ui.js';
 import { startSheet } from './view-novenas.js';
 
 const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
@@ -145,13 +145,14 @@ export async function renderSaint(container, { id }) {
   note.value = item.note || '';
   // Saved a moment after each pause in the writing, and whenever the app is put away.
   let removed = false;
+  const status = saveState(item.note ? 'saved' : 'new');
   const saver = keepSaved(async () => {
     const written = note.value.trim();
     if (removed || written === (item.note || '')) return;
     await savePatron({ ...item, note: written });
     // Only once it is safely kept does the record in hand count it as written.
     item.note = written;
-  });
+  }, 1200, { onState: status.show });
   note.addEventListener('input', () => saver.touch());
   note.addEventListener('blur', () => saver.flush());
 
@@ -166,7 +167,7 @@ export async function renderSaint(container, { id }) {
       next ? el('p', { class: 'chapter-sub', text: next === now ? 'Today is the feast.' : `Feast: ${longDate(next, dayFor(next).weekdayName)}${next.slice(0, 4) === now.slice(0, 4) ? '' : `, ${next.slice(0, 4)}`}` }) : null,
       account ? el('p', { class: 'devotion-guide', text: account.about }) : null,
       account && account.patron ? el('p', { class: 'muted', text: account.patron }) : null,
-      el('label', { class: 'field-label saint-notes' }, 'Your notes', note),
+      el('label', { class: 'field-label saint-notes' }, 'Your notes', note, status.node),
       el('p', { class: 'prayer-line saint-invocation', text: `${item.name}, pray for us.` })),
     el('div', { class: 'prayer-actions' },
       template ? el('button', { class: 'button quiet wide', onclick: () => startSheet(template) }, 'Begin a novena') : null,

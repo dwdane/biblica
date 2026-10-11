@@ -7,15 +7,18 @@ import { loadDays } from './days.js';
 import { loadSettings, requestPersistence, saveSetting, settings } from './db.js';
 import { loadPrayers, scriptureBooks } from './prayers.js';
 import { saveLoadedStudy } from './study.js';
-import { clear, el, icon, showFlash, toast } from './ui.js';
+import { clear, el, icon, scrollPosition, scrollToPosition, showFlash, toast } from './ui.js';
 import { compareVersions, placeBeforeRestart, reinstallApp, restartBetweenScreens, watchForUpdates } from './updates.js';
 import { APP_VERSION } from './version.js';
 import * as aboutView from './view-about.js';
+import * as bookView from './view-book.js';
 import * as confessionView from './view-confession.js';
 import * as dailyView from './view-daily.js';
 import * as dayView from './view-day.js';
+import * as earlyView from './view-early.js';
 import * as devotionView from './view-devotion.js';
 import * as guidedView from './view-guided.js';
+import * as helpView from './view-help.js';
 import * as intentionsView from './view-intentions.js';
 import * as journalView from './view-journal.js';
 import * as libraryView from './view-library.js';
@@ -53,6 +56,8 @@ const THEME_COLORS = {
 
 const root = document.getElementById('app');
 const screen = el('main', { class: 'screen', id: 'screen', tabindex: '-1' });
+// The screens scroll inside this, not the page: see scroller() in ui.js.
+const scrollArea = el('div', { class: 'scroller', id: 'scroller' }, screen);
 const tabbar = el('nav', { class: 'tabbar', 'aria-label': 'Sections' });
 const scrollPositions = new Map();
 let cleanup = null;
@@ -77,6 +82,12 @@ function resolve(hash) {
         keepScroll: Boolean(verse),
       };
     }
+    case 'book':
+      return { tab: 'bible', view: bookView.renderBook, params: { id: a } };
+    case 'early':
+      return a
+        ? { tab: 'bible', view: earlyView.renderEntry, params: { id: a, work: b } }
+        : { tab: 'bible', view: earlyView.renderShelf, params: {} };
     case 'day':
       return { tab: 'today', view: dayView.render, params: { date: a } };
     case 'study':
@@ -146,6 +157,12 @@ function resolvePray(section, a, b, c) {
       return { tab, view: guidedView.renderGuide, params: { id: a } };
     case 'office':
       return { tab, view: officeView.render, params: {} };
+    case 'help':
+      return a
+        ? { tab, view: helpView.renderHelpTopic, params: { id: a } }
+        : { tab, view: helpView.renderHelp, params: {} };
+    case 'aspirations':
+      return { tab, view: helpView.renderAspirations, params: {} };
     case 'saints':
       return { tab, view: saintsView.renderSaints, params: {} };
     case 'saint':
@@ -189,7 +206,7 @@ let firstScreen = true;
 
 async function route() {
   const visit = (latestVisit += 1);
-  if (currentHash !== null) scrollPositions.set(currentHash, window.scrollY);
+  if (currentHash !== null) scrollPositions.set(currentHash, scrollPosition());
   if (cleanup) {
     // A screen with something half-written saves it as it goes; the next screen
     // waits for that, so that it lists what was just written. Not for ever: a
@@ -247,15 +264,32 @@ async function route() {
     firstScreen = false;
     const place = placeBeforeRestart(window.location.hash);
     if (place !== null) {
-      window.scrollTo(0, place);
+      scrollToPosition(place);
       return;
     }
   }
-  if (!target.keepScroll) window.scrollTo(0, scrollPositions.get(hash) || 0);
+  if (!target.keepScroll) scrollToPosition(scrollPositions.get(hash) || 0);
+}
+
+/**
+ * The page is laid out to fill the screen and never scroll. On an iPhone the
+ * keyboard can leave it scrolled a little when it closes, which would leave
+ * the tab bar short of the bottom edge; put it back.
+ */
+function keepPageStill() {
+  const typing = () => {
+    const active = document.activeElement;
+    return Boolean(active) && (active.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName));
+  };
+  // Not while something is being typed: then the phone moves the page on purpose, to keep the field in view.
+  const settle = () => { if (!typing() && (window.scrollY || window.scrollX)) window.scrollTo(0, 0); };
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', () => setTimeout(settle, 60));
+  document.addEventListener('focusout', () => setTimeout(settle, 150));
 }
 
 async function start() {
-  root.append(screen, tabbar);
+  root.append(scrollArea, tabbar);
+  keepPageStill();
   drawTabs('today');
   screen.append(el('p', { class: 'loading', text: 'Opening…' }));
   try {
@@ -334,7 +368,11 @@ function warmScripture() {
       // Whatever was read before the worker took charge went past it; save that first.
       await saveLoadedBooks();
       await saveLoadedStudy();
-      for (const id of scriptureBooks()) await loadBook(id);
+      // The prayers quote the Douay-Rheims; the Rosary and the Stations follow the translation chosen.
+      for (const id of scriptureBooks()) {
+        await loadBook(id, 'drb');
+        await loadBook(id);
+      }
       await saveLoadedBooks();
     } catch {
       // Offline or interrupted; it will be tried again next time.

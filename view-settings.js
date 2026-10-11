@@ -2,12 +2,13 @@
 // Settings: how the app looks and prays, the reader's data, what is kept on
 // the device, updates, and the pages about the app.
 
-import { books, loadAllBooks, savedBookCount, translation } from './bible.js';
+import { books, currentTranslation, loadAllBooks, savedBookCount, translation, TRANSLATIONS } from './bible.js';
 import { go, monthName, today } from './context.js';
 import { eraseEverything, exportBackup, importBackup, requestPersistence, saveSetting, settings } from './db.js';
-import { readableSize, removeSavedStudy, storageReport } from './storage.js';
+import { readableSize, removeSavedStudy, removeSavedTranslation, storageReport } from './storage.js';
 import { loadAllStudy, studySavedOffline } from './study.js';
 import { add, choice, clear, confirmSheet, el, icon, once, restartWith, toast } from './ui.js';
+import { arrangeSheet } from './view-today.js';
 import { checkForUpdate, holdRestarts, reinstallApp, restartNow, updateReady, updatesSupported } from './updates.js';
 import { APP_VERSION } from './version.js';
 
@@ -51,15 +52,16 @@ export async function render(container, _params, { applyTheme }) {
 
     el('section', { class: 'card' },
       el('h3', { class: 'card-heading', text: 'Appearance' }),
-      el('div', { class: 'setting-row' }, el('span', { text: 'Theme' }), segmented('theme', [['auto', 'Automatic'], ['light', 'Light'], ['dark', 'Dark']], applyTheme)),
-      toggle('animations', 'Celebrations', 'A brief shower of symbols when you finish a reading or a devotion.')),
+      el('div', { class: 'setting-row' }, el('span', { text: 'Theme' }), segmented('theme', [['auto', 'Automatic'], ['light', 'Light'], ['dark', 'Dark']], applyTheme))),
 
     readingCard(current, segmented, toggle, applyTheme),
 
     el('section', { class: 'card' },
       el('h3', { class: 'card-heading', text: 'Today' }),
-      toggle('dailyMarks', 'Mark what I have prayed', 'A small mark beside a prayer on your daily list once you have prayed it. Turn off for a plain list.'),
-      toggle('showOnThisDay', 'On this day', 'A card on Today with something that happened on this date in the Church’s history.')),
+      el('div', { class: 'setting-row stacked' },
+        el('span', { class: 'setting-text' }, el('span', { text: 'What Today shows' }), el('span', { class: 'muted small', text: 'Show, hide and order the cards below the day: your rule of life, the readings, a short prayer, intentions, the journal and the rest.' })),
+        el('button', { class: 'button quiet', onclick: () => arrangeSheet(() => {}) }, 'Arrange Today')),
+      toggle('dailyMarks', 'Mark what I have prayed', 'Off unless you want it. When on, a quiet word appears beside what you have prayed in your rule of life today, and you can look back over the month. Nothing is counted either way.')),
 
     el('section', { class: 'card' },
       el('h3', { class: 'card-heading', text: 'Prayers' }),
@@ -94,8 +96,9 @@ export async function render(container, _params, { applyTheme }) {
     el('section', { class: 'card' },
       el('h3', { class: 'card-heading', text: 'The texts' }),
       el('p', { class: 'muted small', text: text ? `${text.name}, ${text.edition}. ${text.license}. Psalms carry their modern numbers; the Vulgate number is shown beside each.` : '' }),
+      el('p', { class: 'muted small', text: 'The Catholic Public Domain Version is Ronald L. Conte Jr.’s translation of the Vulgate, placed by him in the public domain, as published by the Scrollmapper Bible databases. In six chapters the verse divisions of that copy were put back in step with the Douay-Rheims; the words are unchanged.' }),
       el('p', { class: 'muted small', text: 'The Latin is the Clementine Vulgate. The Fathers’ commentary comes from the nineteenth-century English editions and the Catena Aurea, as gathered by the Historical Christian Faith project. Cross-references are from OpenBible.info, under a Creative Commons Attribution licence.' }),
-      el('p', { class: 'muted small', text: 'Mass readings are shown in the Douay-Rheims, which is not the translation read at Mass. Verse numbers were matched to the lectionary automatically and can be a verse off in a few books, chiefly Sirach and Tobit.' })),
+      el('p', { class: 'muted small', text: 'Mass readings are shown in the translation chosen under Reading, which is not the one read at Mass in English-speaking countries. Verse numbers were matched to the lectionary automatically and can be a verse off in a few books, chiefly Sirach and Tobit.' })),
   );
 }
 
@@ -113,8 +116,15 @@ function readingCard(current, segmented, toggle, applyTheme) {
     applyTheme();
   });
   drawSample();
+  const about = el('p', { class: 'muted small translation-about' });
+  const drawAbout = () => { about.textContent = currentTranslation().about; };
+  drawAbout();
   return el('section', { class: 'card' },
     el('h3', { class: 'card-heading', text: 'Reading' }),
+    el('div', { class: 'setting-row stacked' },
+      el('span', { text: 'Translation' }),
+      segmented('translation', TRANSLATIONS.map((item) => [item.id, item.short]), drawAbout)),
+    about,
     el('div', { class: 'setting-row' }, el('span', { text: 'Text size' }), size),
     sample,
     el('div', { class: 'setting-row' }, el('span', { text: 'Verses' }), segmented('verseLayout', [['lines', 'One to a line'], ['flow', 'Flowing']])),
@@ -225,6 +235,8 @@ function storageCard() {
   const bibleButton = el('button', { class: 'button quiet', hidden: true }, 'Save the whole Bible');
   const studyButton = el('button', { class: 'button quiet', hidden: true }, 'Save all the study material');
   const removeButton = el('button', { class: 'button quiet', hidden: true }, 'Remove the study material');
+  // The books of a translation no longer read, which can be removed to free their room.
+  const otherNode = el('div', {});
   const protection = el('p', { class: 'muted small' });
   const protectButton = el('button', { class: 'text-button', hidden: true }, 'Ask the browser to protect it');
 
@@ -265,11 +277,26 @@ function storageCard() {
     clear(figures);
     add(figures,
       line('The app itself', readableSize(report.app.bytes)),
-      line('The Bible', readableSize(report.bible.bytes), haveBooks >= total ? `All ${total} books are saved for offline use` : `${haveBooks} of ${total} books saved; the rest are saved as you open them`),
-      line('Latin, cross-references and the Fathers', readableSize(report.study.bytes), studyAll ? 'All of it is saved for offline use' : (report.study.files ? `${report.study.files} files saved; more are saved as you use them` : 'Saved book by book as you use it')),
+      line('The Bible', readableSize(report.bible.bytes), haveBooks >= total ? `All ${total} books of the ${currentTranslation().short} are saved for offline use` : `${haveBooks} of ${total} books of the ${currentTranslation().short} saved; the rest are saved as you open them`),
+      line('Latin, cross-references, the Fathers and early writings', readableSize(report.study.bytes), studyAll ? 'All of it is saved for offline use' : (report.study.files ? `${report.study.files} files saved; more are saved as you use them` : 'Saved book by book as you use it')),
       line('What you have written', readableSize(report.written.bytes)),
       el('div', { class: 'storage-line total' }, el('span', { class: 'storage-label', text: 'Altogether' }), el('span', { class: 'storage-value', text: readableSize(report.total) })));
     bibleButton.hidden = haveBooks >= total;
+    clear(otherNode);
+    for (const item of TRANSLATIONS) {
+      const kept = report.translations[item.id];
+      if (item.id === currentTranslation().id || !kept || !kept.files) continue;
+      add(otherNode, el('div', { class: 'storage-other' },
+        el('p', { class: 'muted small', text: `${kept.files} ${kept.files === 1 ? 'book' : 'books'} of the ${item.short} (${readableSize(kept.bytes)}) are still saved from when you read it.` }),
+        el('button', {
+          class: 'text-button',
+          onclick: async () => {
+            const removed = await removeSavedTranslation(item.id);
+            toast(removed ? `The ${item.short} has been removed from this device` : 'There was nothing to remove');
+            draw();
+          },
+        }, `Remove the ${item.short}`)));
+    }
     studyButton.hidden = Boolean(studyAll);
     removeButton.hidden = report.study.files === 0;
     if (report.protected === true) {
@@ -312,7 +339,7 @@ function storageCard() {
     draw();
   });
 
-  removeButton.addEventListener('click', () => confirmSheet('Remove the study material?', 'The saved Latin, cross-references and commentary will be removed from this device to free the room they take. Nothing you have written is touched, and each book’s material is fetched again when you next open it with a connection.', 'Remove', async () => {
+  removeButton.addEventListener('click', () => confirmSheet('Remove the study material?', 'The saved Latin, cross-references, commentary and early writings will be removed from this device to free the room they take. Nothing you have written is touched, and each is fetched again when you next open it with a connection.', 'Remove', async () => {
     const removed = await removeSavedStudy();
     toast(removed ? 'The study material has been removed from this device' : 'There was nothing to remove');
     draw();
@@ -330,7 +357,8 @@ function storageCard() {
     el('h3', { class: 'card-heading', text: 'Storage' }),
     el('p', { class: 'muted', text: 'What Biblica keeps on this device, so that it works offline.' }),
     figures,
-    el('p', { class: 'muted small', text: 'Nothing here grows by itself. The app and the texts are copies of fixed files, replaced rather than added to when the app updates, and come to about 40 MB with everything saved. What you write is text only: years of daily notes stay under a megabyte or two.' }),
+    otherNode,
+    el('p', { class: 'muted small', text: 'Nothing here grows by itself. The app and the texts are copies of fixed files, replaced rather than added to when the app updates, and come to about 40 MB with everything saved in one translation. What you write is text only: years of daily notes stay under a megabyte or two.' }),
     status,
     el('div', { class: 'button-row' }, bibleButton, studyButton, removeButton),
     protection, protectButton);

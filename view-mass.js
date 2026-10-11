@@ -14,7 +14,7 @@ import { dayFor, go, goBack, today } from './context.js';
 import { saveSetting, settings } from './db.js';
 import { creedSaid, gloriaSaid, loadMass } from './mass.js';
 import { findPrayer, renderPrayer } from './prayers.js';
-import { add, choice, clear, el, icon } from './ui.js';
+import { add, choice, clear, el, icon, scrollToPosition } from './ui.js';
 import { outLink } from './view-about.js';
 
 const POSTURE_NAMES = { stand: 'Stand', sit: 'Sit', kneel: 'Kneel', 'sit-or-kneel': 'Sit or kneel' };
@@ -208,7 +208,7 @@ export async function render(container, { form }) {
     }
     add(body,
       el('p', { class: 'muted small mass-credit', text: mass.credit }),
-      el('button', { class: 'text-button', onclick: () => window.scrollTo({ top: 0, behavior: 'smooth' }) }, 'Back to the top'));
+      el('button', { class: 'text-button', onclick: () => scrollToPosition(0, true) }, 'Back to the top'));
   }
 
   const controls = traditional

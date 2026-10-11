@@ -1,6 +1,6 @@
 # Terms of use
 
-Last changed with release 0.4.0, 10 October 2026.
+Last changed with release 0.5.0, 10 October 2026.
 
 ## The short version
 
@@ -17,14 +17,15 @@ Biblica is free software together with old texts that are in the public domain. 
 
 Biblica has no imprimatur and has not been reviewed or approved by any bishop, by a bishops' conference or by the Holy See.
 
-- The Bible is the Douay-Rheims in Bishop Challoner's revision. The Mass readings are shown in that translation, which is not the one read at Mass.
+- The Bible is the Douay-Rheims in Bishop Challoner's revision. A second translation can be chosen, the Catholic Public Domain Version, made by one layman; it has no imprimatur and has not been approved by any bishop. The Mass readings are shown in the translation chosen, neither of which is the one read at Mass.
+- The introductions to the books of the Bible summarise reference works in the app's own words. The early Christian writings on the shelf after the Bible are not Scripture.
 - The prayers are given in their long-established forms. The current English translations of the Roman Missal and of the Liturgy of the Hours are under copyright. The Liturgy of the Hours is not included. Of the Missal only short excerpts are given, in the Mass companion: the people's responses, the priest's short lines, and the first words of the longer prayers.
 - The Mass companion is a guide to following the Mass. It is not the Missal, and it does not carry the full approved text of the ordinary form in English. Its English of the older Mass is a translation for following the Latin, not an approved text.
 - The calendar, the holy days of obligation and the days of fasting and abstinence are worked out by the app for the United States or for the General Roman Calendar. They can be wrong, and dioceses differ. Your parish and your diocese are the authority.
 
 ## Not pastoral or medical advice
 
-The examination of conscience, the guides to prayer, the notes on the saints and the commentary of the Fathers are aids. They are no substitute for a confessor, a spiritual director or the teaching of the Church, and nothing in the app is medical or psychological advice. If you are in distress or in danger, contact your local emergency number or someone you trust.
+The examination of conscience, the guides to prayer, the counsel for hard times, the notes on the saints and the commentary of the Fathers are aids. They are no substitute for a confessor, a spiritual director or the teaching of the Church, and nothing in the app is medical or psychological advice. If you are in distress or in danger, contact your local emergency number or someone you trust; in the United States and Canada you can call or text 988, and in the United Kingdom and Ireland call Samaritans on 116 123.
 
 ## Mistakes
 
@@ -37,7 +38,7 @@ Your notes, journal and everything else you write belong to you and exist only o
 ## Licence
 
 - The app's code, and the text written for it, are released under the MIT licence. See the file `LICENSE`.
-- The Bible text, the Latin, the prayers and the writings of the Fathers are in the public domain.
+- The Bible text in both translations, the Latin, the prayers, the writings of the Fathers and the early Christian writings are in the public domain.
 - Some data comes from other projects under their own licences, which ask to be credited. See the file `NOTICES.md`, or Sources and licences in the app.
 - **One exception.** The Mass companion quotes short excerpts from the English translation of The Roman Missal, which belongs to the International Commission on English in the Liturgy (ICEL) and is not under any open licence. They are given with ICEL's notice, as its policy asks of free, non-commercial websites. The MIT licence does not cover them, and a copy of the app that is sold, or that charges for access, may not include them.
 

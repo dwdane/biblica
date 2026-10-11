@@ -5,7 +5,7 @@
 import { formatRange, parseReference, parseVerseId, verseId, verseText } from './bible.js';
 import { go, goBack, today } from './context.js';
 import { deleteReflection, reflection, saveReflection, sortRefs, takeHandedText } from './reflections.js';
-import { add, clear, confirmSheet, el, icon, keepSaved, toast } from './ui.js';
+import { add, clear, confirmSheet, el, icon, keepSaved, saveState, scrollPosition, scrollToPosition, toast } from './ui.js';
 
 const VERSE_ID = /^[1-3A-Z]{3}\.\d+\.\d+$/;
 
@@ -61,7 +61,9 @@ export async function render(container, { id, start, end }) {
     }
   }
   // Saved a moment after each pause in the writing, and whenever the app is put away.
-  const saver = keepSaved(store);
+  // The line under the title says whether it is kept; there is no Save button to forget.
+  const status = saveState(existing ? 'saved' : 'new');
+  const saver = keepSaved(store, 900, { onState: status.show });
   const mark = () => {
     saver.touch();
     // The first words of a new reflection are saved at once, so that it has its
@@ -74,10 +76,10 @@ export async function render(container, { id, start, end }) {
   // for an instant, so the page is put back where it was.
   const fit = (node, least) => { node.style.height = 'auto'; node.style.height = `${Math.max(node.scrollHeight + 2, least)}px`; };
   const grow = () => {
-    const y = window.scrollY;
+    const y = scrollPosition();
     fit(title, 0);
     fit(text, 132);
-    if (window.scrollY !== y) window.scrollTo(0, y);
+    if (scrollPosition() !== y) scrollToPosition(y);
   };
   title.addEventListener('input', () => {
     // A title is one line of thought: a pasted line break becomes a space.
@@ -149,16 +151,7 @@ export async function render(container, { id, start, end }) {
   add(container,
     el('header', { class: 'reader-bar' },
       el('button', { class: 'back-button', onclick: () => goBack('#/notes') }, icon('back'), el('span', { text: 'Back' })),
-      el('button', {
-        class: 'button',
-        onclick: async () => {
-          // A reference typed but not yet added is meant to be part of it.
-          addPending();
-          if (!record.id && empty()) { title.focus(); return; }
-          saver.touch();
-          if (await saver.flush()) toast('Saved');
-        },
-      }, 'Save')),
+      status.node),
     el('article', { class: 'chapter reflection-page' },
       el('p', { class: 'rubric', text: existing ? 'Reflection' : 'New reflection' }),
       title,
@@ -183,6 +176,9 @@ export async function render(container, { id, start, end }) {
   await drawRefs();
   requestAnimationFrame(grow);
   if (!existing) setTimeout(() => (title.value ? text : title).focus(), 250);
-  // Leaving the screen keeps what was written.
-  return () => saver.stop();
+  // Leaving the screen keeps what was written, a reference typed but not yet added included.
+  return () => {
+    if (!deleted) addPending();
+    return saver.stop();
+  };
 }

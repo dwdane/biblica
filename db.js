@@ -124,7 +124,6 @@ export const DEFAULT_SETTINGS = {
   theme: 'auto', // 'auto', 'light' or 'dark'
   region: 'us', // 'us' or 'general'
   ascensionThursday: false,
-  animations: true,
   lastPlace: null, // { book, chapter }
   prayerLanguage: 'en', // 'en', 'la' or 'both'
   holyGhost: false, // say "Holy Ghost" where the prayers have "Holy Spirit"
@@ -138,8 +137,10 @@ export const DEFAULT_SETTINGS = {
   devotionProgress: null, // { key, date, step } for resuming a devotion left midway
   showLatin: false, // show the Vulgate beneath each verse in the reader
   examenJournal: true, // offer to write in the journal during the examen
-  dailyMarks: true, // show a quiet mark beside what has been prayed today
-  showOnThisDay: true, // the "On this day" card on Today
+  dailyMarks: false, // show a quiet mark beside what has been prayed today (off: the list is for going to, not ticking off)
+  showOnThisDay: true, // the "On this day" card on Today; kept for older backups, now part of todayCards
+  todayCards: null, // the cards on Today, in order: [{ id, on }]; null for the usual arrangement (see dashboard.js)
+  translation: 'drb', // the Bible shown in the reader: 'drb' (Douay-Rheims) or 'cpdv' (Catholic Public Domain Version)
   autoUpdate: true, // restart into a new release at the next quiet moment, rather than asking
   seenVersion: null, // the release this device last started as
   updateChecked: null, // when Settings last asked the site for an update (ISO time)
@@ -157,7 +158,14 @@ export async function loadSettings() {
   if (!settingsCache) {
     const loadedSettings = { ...DEFAULT_SETTINGS };
     try {
-      for (const row of await db.all('settings')) loadedSettings[row.key] = row.value;
+      const rows = await db.all('settings');
+      for (const row of rows) loadedSettings[row.key] = row.value;
+      // Marks became something to turn on in 0.5. A reader who had been marking what
+      // they prayed keeps them; everyone else starts with the plain list.
+      if (rows.length && !rows.some((row) => row.key === 'dailyMarks')) {
+        loadedSettings.dailyMarks = (await db.all('practiceLog')).some((log) => Object.keys(log.done || {}).length);
+        await db.put('settings', { key: 'dailyMarks', value: loadedSettings.dailyMarks });
+      }
     } catch (error) {
       // Storage can be unavailable (some private browsing modes). The Bible
       // is still readable; nothing the reader does will be remembered.

@@ -6,13 +6,54 @@
 // codes in data-books.json. Ids are what notes, highlights and links store,
 // so their form must never change.
 
-// Each book is one file: this prefix, the book's id, then ".json".
-export const TEXT_PREFIX = 'drb-';
+import { settings } from './db.js';
+
+/**
+ * The translations the app can show. The Douay-Rheims is the default, the
+ * one the prayers quote and the one the app was built around. The Catholic
+ * Public Domain Version is a modern English translation of the same Latin
+ * Vulgate, with the same chapters and verses, offered as an option; it has
+ * no imprimatur (see docs/SOURCES.md).
+ */
+// Each book is one file: the translation's folder, the book's id, then ".json".
+// The folders are written out in full so that the flat copy can rename them.
+export const TRANSLATIONS = [
+  {
+    id: 'drb',
+    name: 'Douay-Rheims',
+    short: 'Douay-Rheims',
+    folder: 'drb-',
+    about: 'The Challoner revision (1749–1752) of the Douay-Rheims, the classic English Catholic Bible, translated from the Latin Vulgate. Its English is old (thee and thou), its printed editions carried a bishop’s approval, and it is the translation the app’s prayers quote. The default.',
+  },
+  {
+    id: 'cpdv',
+    name: 'Catholic Public Domain Version',
+    short: 'CPDV',
+    folder: 'cpdv-',
+    about: 'A modern English translation of the same Latin Vulgate, made by one layman, Ronald L. Conte Jr., and placed in the public domain. It has no imprimatur: no bishop has reviewed or approved it, as Church law asks of Catholic Bibles (canon 825). It reads easily, follows the Douay-Rheims’ chapters and verses (in two places it runs a verse into the one before), and in the Song of Songs names who is speaking.',
+  },
+];
+export const TEXT_PREFIXES = TRANSLATIONS.map((item) => item.folder);
+
+/** The translation the reader has chosen. */
+export function currentTranslation() {
+  const chosen = settings().translation;
+  return TRANSLATIONS.find((item) => item.id === chosen) || TRANSLATIONS[0];
+}
+
+function textPrefix() {
+  return currentTranslation().folder;
+}
+
+function folderOf(translationId) {
+  return (TRANSLATIONS.find((item) => item.id === translationId) || TRANSLATIONS[0]).folder;
+}
 
 let index = null; // parsed data-books.json
 let byId = new Map();
-const loaded = new Map(); // book id -> chapters (array of arrays of verse text)
+const loaded = new Map(); // "translation:book" -> chapters (array of arrays of verse text)
 const pending = new Map();
+const keyFor = (id, translationId = currentTranslation().id) => `${translationId}:${id}`;
 
 export async function loadIndex() {
   if (!index) {
@@ -42,35 +83,42 @@ export function vulgatePsalm(chapter) {
   return label && label !== String(chapter) ? label : null;
 }
 
-export async function loadBook(id) {
-  if (loaded.has(id)) return loaded.get(id);
-  if (!pending.has(id)) {
-    pending.set(id, (async () => {
+/**
+ * A book of the Bible: an array of chapters, each an array of verses. In the
+ * translation the reader has chosen, unless another is named (the prayers
+ * always quote the Douay-Rheims).
+ */
+export async function loadBook(id, translationId = currentTranslation().id) {
+  const key = keyFor(id, translationId);
+  if (loaded.has(key)) return loaded.get(key);
+  if (!pending.has(key)) {
+    const path = `${folderOf(translationId)}${id}.json`;
+    pending.set(key, (async () => {
       try {
-        const response = await fetch(`${TEXT_PREFIX}${id}.json`);
+        const response = await fetch(path);
         if (!response.ok) throw new Error(`${book(id) ? book(id).name : id} could not be loaded.`);
         const data = await response.json();
-        loaded.set(id, data.chapters);
+        loaded.set(key, data.chapters);
         return data.chapters;
       } finally {
         // Whether it worked or not, the next request starts afresh: a book
         // that failed to load while offline can be fetched once back online.
-        pending.delete(id);
+        pending.delete(key);
       }
     })());
   }
-  return pending.get(id);
+  return pending.get(key);
 }
 
 /**
  * Fetch every book, so the whole Bible is in the offline cache and in memory.
  * Calls onProgress(done, total) after each book.
  */
-export async function loadAllBooks(onProgress) {
+export async function loadAllBooks(onProgress, translationId = currentTranslation().id) {
   const all = books();
   let done = 0;
   for (const entry of all) {
-    await loadBook(entry.id);
+    await loadBook(entry.id, translationId);
     done += 1;
     if (onProgress) onProgress(done, all.length);
   }
@@ -83,13 +131,16 @@ export async function loadAllBooks(onProgress) {
  * fetched past it and never saved; fetching it once more puts that right.
  */
 export async function saveLoadedBooks() {
-  await saveForOffline([...loaded.keys()].map((id) => `${TEXT_PREFIX}${id}.json`));
+  await saveForOffline([...loaded.keys()].map((key) => {
+    const [translationId, id] = key.split(':');
+    return `${folderOf(translationId)}${id}.json`;
+  }));
 }
 
-/** How many books of the Bible are in the offline cache, or null where the browser cannot say. */
+/** How many books of the chosen translation are in the offline cache, or null where the browser cannot say. */
 export async function savedBookCount() {
   if (!('caches' in window)) return null;
-  const found = await Promise.all(books().map((entry) => caches.match(`${TEXT_PREFIX}${entry.id}.json`, { ignoreSearch: true })));
+  const found = await Promise.all(books().map((entry) => caches.match(`${textPrefix()}${entry.id}.json`, { ignoreSearch: true })));
   return found.filter(Boolean).length;
 }
 
@@ -105,11 +156,12 @@ export async function saveForOffline(paths) {
 }
 
 export function isLoaded(id) {
-  return loaded.has(id);
+  return loaded.has(keyFor(id));
 }
 
 export function loadedCount() {
-  return loaded.size;
+  const prefix = `${currentTranslation().id}:`;
+  return [...loaded.keys()].filter((key) => key.startsWith(prefix)).length;
 }
 
 // ---------------------------------------------------------------------------
@@ -187,8 +239,8 @@ export function formatRange(startId, endId, options) {
  * Returns [{ id, chapter, verse, text }], skipping verse numbers the
  * Douay-Rheims leaves empty.
  */
-export async function versesFor(bookId, spans) {
-  const chapters = await loadBook(bookId);
+export async function versesFor(bookId, spans, { translation: translationId } = {}) {
+  const chapters = await loadBook(bookId, translationId);
   const verses = [];
   for (const [c1, v1, c2, v2] of spans) {
     for (let chapter = c1; chapter <= c2; chapter += 1) {

@@ -1,6 +1,6 @@
 # Privacy
 
-Last changed with release 0.4.0, 10 October 2026.
+Last changed with release 0.5.0, 10 October 2026.
 
 ## The short version
 
@@ -16,12 +16,12 @@ Biblica keeps the following in your browser's storage for this app, on this devi
 
 - your notes, highlights and the links you make between verses;
 - your reflections and your journal;
-- your daily list and, unless you turn it off, a note of what you prayed each day;
+- your rule of life and, only if you turn it on, a note of what you prayed each day;
 - your novenas, intentions, saints and your own prayers;
 - your place in the Bible, in reading plans and in the day's readings;
-- your settings, such as text size and calendar, and a few facts about this device's copy: which version it last ran, when it last looked for an update and when you last made a backup;
-- what you mark in the examination of conscience and the date of your last confession, which are kept apart from the rest and left out of backups unless you ask for them;
-- a copy of the app itself, and of the Bible text and study material it has fetched, so that it works offline.
+- your settings, such as text size, translation, calendar and how Today is arranged, and a few facts about this device's copy: which version it last ran, when it last looked for an update and when you last made a backup;
+- what you mark in the examination of conscience, the date of your last confession and what you keep from your confessor's advice, which are kept apart from the rest and left out of backups unless you ask for them;
+- a copy of the app itself, and of the Bible text, study material and early Christian writings it has fetched, so that it works offline, with a note of which corrections to the Bible text that copy has had.
 
 When the app restarts itself (after an update, a restore or erasing), your browser's session storage holds which screen you were on, when it restarted and a message to show you. Session storage is emptied when the app is closed.
 
@@ -33,7 +33,8 @@ Nothing you write, ever. The only traffic is Biblica fetching its own files from
 
 - **The app's files**, when it is first installed and when it is updated.
 - **A question about updates.** The app asks the site for one small file when it is opened, when it is brought back into view (at most once in five minutes), every half hour while it stays open, and when a connection returns. If the site does not answer, or a release arrives incomplete, it asks again a few times over the next few minutes. "Check for updates" in Settings asks at once.
-- **The Bible and study material, as they are needed.** When the app starts it fetches the books that the day's readings and the prayers quote. It fetches a book when you first open it, the study material for a book when you first study it or read it with the Latin, and every book the first time you search. Each file is fetched once and read from your device after that.
+- **The Bible and study material, as they are needed.** When the app starts it fetches the books that the day's readings and the prayers quote. It fetches a book when you first open it (in the translation you have chosen), the study material for a book when you first study it or read it with the Latin, an early Christian writing when you first open it, and every book the first time you search. Each file is fetched once and read from your device after that.
+- **Corrections to the Bible text.** When a release corrects the text, the app fetches again the books it had saved, once, when it is next opened.
 
 These are ordinary downloads. They carry nothing you have written, no name and no identifier. They do carry what every web request carries: your internet address, a description of your browser, and which file was asked for. So the company that runs the server could tell roughly when someone at your address opens the app, and that the Book of Job was fetched on a certain day. It cannot tell what you do in the app, what you read once a book is on your device, or anything you write. If you would rather not leave even the trace of which books you open, save the whole Bible and the study material at once in Settings, under Storage; opening a book then fetches nothing.
 
@@ -45,7 +46,7 @@ Everything on this page describes the app as it was written. The app updates its
 
 ## Links to other websites
 
-A few screens point to another website: the bishops' outline of the Mass, the sites that carry the Liturgy of the Hours, and the sources credited in the app. These are marked as leaving the app and open only when you tap them. What that website learns is then between you and it. Biblica tells your browser not to pass on the address you came from.
+A few screens point to another website: the bishops' outline of the Mass, the sites that carry the Liturgy of the Hours, and the sources credited in the app. The pages of counsel for hard times also offer to call or text a crisis line; that hands the number to your phone, and the app sends nothing itself. These are marked as leaving the app and open only when you tap them. What that website learns is then between you and it. Biblica tells your browser not to pass on the address you came from.
 
 ## Backups
 
