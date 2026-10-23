@@ -246,6 +246,11 @@ const ICON_PATHS = {
   out: '<path d="M13.5 5H19v5.5M19 5l-8 8"/><path d="M10 6.5H6.5A1.5 1.5 0 0 0 5 8v9.5A1.5 1.5 0 0 0 6.5 19H16a1.5 1.5 0 0 0 1.5-1.5V14"/>',
   mass: '<path d="M8.5 4.5h7M9 4.5c0 4 .8 6 3 6s3-2 3-6M12 10.5V17M8 19.5c0-1.4 1.8-2.5 4-2.5s4 1.1 4 2.5z"/>',
   hours: '<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>',
+  tools: '<rect x="4.5" y="4.5" width="6.2" height="6.2" rx="1.6"/><rect x="13.3" y="4.5" width="6.2" height="6.2" rx="1.6"/><rect x="4.5" y="13.3" width="6.2" height="6.2" rx="1.6"/><path d="M16.4 13.3v6.2M13.3 16.4h6.2"/>',
+  calendar: '<rect x="4.5" y="5.5" width="15" height="14" rx="1.8"/><path d="M4.5 9.5h15M8.5 3.5v4M15.5 3.5v4"/>',
+  heart: '<path d="M12 19.2s-7-4.3-7-9.4A3.8 3.8 0 0 1 12 7.6a3.8 3.8 0 0 1 7 2.2c0 5.1-7 9.4-7 9.4z"/>',
+  leaf: '<path d="M6 18c0-7 4.5-12 13-12 0 8.5-5 13-12 13"/><path d="M6 18l6.5-6.5"/>',
+  beads: '<circle cx="12" cy="5.5" r="1.6"/><circle cx="16.6" cy="7.4" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/><circle cx="16.6" cy="16.6" r="1.6"/><circle cx="7.4" cy="7.4" r="1.6"/><circle cx="5.5" cy="12" r="1.6"/><circle cx="7.4" cy="16.6" r="1.6"/><path d="M12 18.5v3M10.6 20h2.8"/>',
 };
 
 export function icon(name, size = 22) {

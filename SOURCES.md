@@ -152,6 +152,76 @@ How far to trust them:
   Catechism, the Liturgy of the Hours, and the translation of Saint Faustina's Diary from which the
   usual English of the Divine Mercy chaplet comes.
 
+### Prayers added in 0.6
+
+The library grew from 63 prayers to 161 (`tools/sources/prayers/09-mercy.txt` to `18-saints.txt`).
+Each prayer's note names its source; the rule for bundling a text is that it was first published,
+anywhere, before 1931 (decision 98), or is the app's own words. The sources, all public domain:
+
+- **Old Catholic prayer books**, read word for word from Project Gutenberg through its GitHub
+  mirror (GITenberg): Bonaventure Hammer, *General Catholic Devotions* (New York: Benziger, 1909);
+  Albert A. Lings, *Our Monthly Devotions* (New York: Benziger, 1899); and the English of *The
+  Raccolta* (1910) and *The New Raccolta* (1903) where those were quoted in them or in reliable
+  transcriptions. E. J. Quigley, *The Divine Office* (1920), for the English of the Compline texts.
+- **Translations by named Victorian and Edwardian translators**: Edward Caswall (*Lyra Catholica*,
+  1849), E. B. Pusey (Augustine's *Confessions*), S. N. Deane (Anselm, 1903), Kuno Meyer (Saint
+  Patrick's Breastplate, 1911), A. M. Sellar (Bede, 1907), Richard Challoner (*The Following of
+  Christ*), H. W. Longfellow, Matthew Arnold and T. N. Taylor (*Story of a Soul*, 1912).
+- **The Latin of the Missal and the Breviary**, from the Divinum Officium project's transcription
+  of the 1962 books, for the collects, sequences and antiphons. Where the note says "translated for
+  this app", the English is ours, made from that Latin (or, for the Chaplet of Divine Mercy, from
+  the Polish of Saint Faustina's Diary, 476), and is offered under the app's own licence.
+- **Scripture** by reference, from the shipped Douay-Rheims.
+
+How far to trust them:
+
+- The prayer-book texts were copied by script from the Gutenberg files and compared with them, so
+  their wording is the book's, with two deliberate changes: pronouns for God in lower case, as in
+  the rest of the library, and one line of the Universal Prayer left out, as its note says.
+- Several texts rest on a single printing (most of those from Hammer and Lings). A second printing
+  was not found for them in this release.
+- The Latin of the Compline texts and of *O Iesu vivens in Maria* was supplied from knowledge of
+  the books, not copied from a scan; it should be checked against a printed breviary.
+- Left out because no printing before 1931 could be checked: the familiar prayer to Saint Jude
+  (first found in a Chicago booklet of 1954), the prayer of the Novena of Grace, Montfort's act of
+  consecration in an old English, *Flos Carmeli*, the Act of Dedication to Christ the King and the
+  Act of Reparation to the Sacred Heart, and Saint Thomas Aquinas's prayer before Mass in English.
+
+### Novenas and longer devotions (0.6)
+
+The forty-four templates in `tools/sources/prayers/devotions.json` were researched for this release:
+their traditional dates, what they ask and where they come from, with a note on what is private
+revelation, legend or custom. Sources were mostly secondary: the *Catholic Encyclopedia* (1907 to
+1912), Pius XII's *Haurietis Aquas* (1956), the Directory on Popular Piety and the Liturgy (2001)
+where it could be read, the shrines' own pages and Wikipedia. Dates were checked against the
+calendar the app follows. Saint Elmo is taken to be Saint Erasmus, as the Vatican City State's
+calendar and the English Martyrology have it; Blessed Peter González, the "San Telmo" of Spain and
+Portugal, has a novena of his own.
+
+## Tools (0.6)
+
+| Files | From | Licence |
+| --- | --- | --- |
+| `tools/sources/helps/fasting.json` | The Code of Canon Law (canons 919 and 1249 to 1253), the US bishops' *Pastoral Statement on Penance and Abstinence* (1966) and their complementary norms, the Catechism, and the norms of other bishops' conferences as summarised by them | Written for this project; the law is summarised, not quoted |
+| `tools/sources/helps/indulgences.json` | The *Enchiridion Indulgentiarum* (4th edition, 1999), Paul VI's *Indulgentiarum Doctrina* (1967), the Catechism (1471 to 1479), and the Apostolic Penitentiary's decrees for particular years | Written for this project; the grants are summarised |
+| `tools/sources/helps/guides.json` | The Catechism, the Code of Canon Law, the General Instruction of the Roman Missal, the Directory on Popular Piety, the *Catholic Encyclopedia* for history, and the sources each guide names | Written for this project |
+| `tools/sources/prayers/habits.json` | The interior habits: Francis de Sales, Thérèse of Lisieux, Ignatius, Brother Lawrence, Thomas à Kempis, Newman, de Caussade, Quadrupani and others, in translations published before 1931; each saying is marked as word for word or as a paraphrase | Written for this project; the sayings are public domain |
+| `tools/sources/prayers/way.json` (patterns from the saints) | The saints' own writings where they could be read (the *Introduction to the Devout Life*, Newman's "short road to perfection", *Story of a Soul*, the *Spiritual Exercises*, Alphonsus's rule of life) and lives of the others | Written for this project |
+
+How far to trust them: much of the Holy See's website could not be reached during the research, so
+some paragraph numbers of the Catechism and canons were confirmed from secondary sources only; the
+release notes list what remains to check. The patterns of Saint Josemaría Escrivá, Saint Thomas
+More, Saint Pier Giorgio Frassati and Saint Carlo Acutis rest partly on secondary accounts.
+
+## Saints (0.6)
+
+`data/saints.json` is built from the calendar the app follows, with celebrations of several saints
+given as each person (`tools/sources/saints/split.json`), saints added by hand with their sources
+(`added.json`), and the collect of each saint's own Mass in the 1962 Missal, Latin and English, from
+Divinum Officium (`collects.json`, taken by `tools/scripts/vendor_collects.py` from commit 0a40211
+and matched by hand in `collects-map.json`). Divinum Officium is under the MIT licence; its English
+is of uncertain parentage, as noted above for the Mass.
+
 ## Study material (0.3)
 
 | File | From | Revision | Licence |

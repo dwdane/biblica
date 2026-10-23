@@ -10,9 +10,11 @@
 //
 // An entry points at what it is by a reference string:
 //   "prayer:our-father"   a prayer from the library ("prayer:own-3" for one of the reader's own)
-//   "devotion:rosary"     a guided devotion: rosary, stations, lectio or examen
+//   "devotion:rosary"     a guided devotion: rosary, stations, lectio, examen or divine-mercy (the chaplet)
+//   "habit:no-complaining" an interior habit, kept through the day (see habits.js)
 //   "guide:mental-prayer" another guided prayer, from the list in data-prayers.json
 //   "readings"            the Mass readings of the day
+//   "focus"               the one habit chosen as the reader's focus for a few weeks
 //   "plan:bible-year"     a reading plan
 //   "custom"              something with no text in the app, such as "Mass"
 
@@ -21,8 +23,9 @@ import { dayFor } from './context.js';
 import { formatSpan } from './bible.js';
 import { db, settings } from './db.js';
 import { rosarySetFor } from './devotions.js';
-import { activeNovenas, currentDay, daysPrayed, allNovenas } from './novenas.js';
+import { activeNovenas, allNovenas, dayOn, firstDate, lastDate, stepLabel } from './novenas.js';
 import { loadPlans, allProgress, nextDay } from './plans.js';
+import { currentFocus, habitById } from './habits.js';
 import { builtInTitle, findPrayer, prayerData, seasonalPrayerId } from './prayers.js';
 import { occursOn, scheduleLabel } from './schedule.js';
 
@@ -37,10 +40,16 @@ export const TIMES = [
 
 export const DEVOTION_NAMES = {
   rosary: 'The Rosary',
+  'divine-mercy': 'The Chaplet of Divine Mercy',
   stations: 'Stations of the Cross',
   lectio: 'Lectio Divina',
   examen: 'Evening examen',
 };
+
+/** Where a devotion is prayed. The chaplets have a screen of their own. */
+export function devotionPath(name) {
+  return name === 'divine-mercy' ? '#/pray/chaplet/divine-mercy' : `#/pray/${name}`;
+}
 
 /** The guided prayers beyond the built-in devotions: [{ id, title, sub, ... }]. */
 export function guides() {
@@ -171,8 +180,10 @@ export async function titleFor(reference) {
   }
   if (kind === 'devotion') return DEVOTION_NAMES[name] || 'Devotion';
   if (kind === 'guide') return guide(name) ? guide(name).title : 'Guided prayer';
+  if (kind === 'habit') return habitById(name) ? habitById(name).title : 'A habit';
   if (kind === 'journal') return 'Journal';
   if (kind === 'readings') return 'Mass readings';
+  if (kind === 'focus') return 'One thing to amend';
   if (kind === 'plan') {
     const plan = (await loadPlans()).find((item) => item.id === name);
     return plan ? plan.name : 'Reading plan';
@@ -213,12 +224,21 @@ export async function itemsFor(date, day) {
         item.sub = 'In place of the Angelus during Easter';
       }
     } else if (kind === 'devotion') {
-      item.path = `#/pray/${name}`;
+      item.path = devotionPath(name);
       if (name === 'rosary') item.sub = rosarySetFor(day).name;
       if (name === 'lectio') item.sub = 'With the Gospel of the day';
+    } else if (kind === 'habit') {
+      const habit = habitById(name);
+      item.path = `#/pray/habit/${name}`;
+      if (habit) item.sub = habit.sub;
     } else if (kind === 'guide') {
       item.path = `#/pray/guide/${name}`;
       if (guide(name)) item.sub = guide(name).sub;
+    } else if (kind === 'focus') {
+      // Whatever habit is the focus at the time; choosing one is a tap away when there is none.
+      const focus = currentFocus(date);
+      item.path = '#/pray/focus';
+      item.sub = focus && !focus.over ? `Your focus: ${focus.habit.title}` : 'Choose one thing to work on';
     } else if (kind === 'journal') {
       item.path = `#/journal/${date}`;
     } else if (kind === 'readings') {
@@ -241,20 +261,23 @@ export async function itemsFor(date, day) {
     items.push(item);
   }
   for (const novena of novenas) {
-    const prayedToday = Boolean(novena.done[date]);
-    const dayNumber = prayedToday ? Object.keys(novena.done).sort().indexOf(date) + 1 : currentDay(novena);
     items.push({
       key: `n${novena.id}`,
       title: novena.title,
-      sub: `Day ${dayNumber} of ${novena.days}`,
-      time: 'any',
+      sub: stepLabel(novena, dayOn(novena, date)),
+      time: novena.time || 'any',
       path: `#/pray/novena/${novena.id}`,
-      done: prayedToday,
+      done: Boolean(novena.done && novena.done[date]),
       novena,
     });
   }
   const order = TIMES.map(([id]) => id);
   return items.sort((a, b) => order.indexOf(a.time) - order.indexOf(b.time));
+}
+
+/** Whether the reader's habits have Mass on a date: an entry they named with the word "Mass". */
+export async function massOn(date) {
+  return (await currentPractices()).some((item) => item.ref === 'custom' && /\bmass\b/i.test(item.title) && isScheduled(item, date));
 }
 
 /**
@@ -288,17 +311,21 @@ export async function monthHistory(year, month, today) {
   for (const novena of novenas) {
     const first = iso(1);
     const last = iso(days);
-    const end = novena.finished || today;
-    if (novena.started > last || novena.started > today || end < first) continue;
+    const start = firstDate(novena);
+    const end = lastDate(novena) < today ? lastDate(novena) : today;
+    // A day marked before the record was laid on the calendar (release 0.5) still shows in its month.
+    const markedThisMonth = Object.keys(novena.done || {}).some((date) => date >= first && date <= last);
+    if (!markedThisMonth && (start > last || start > today || end < first)) continue;
     const states = [];
     for (let day = 1; day <= days; day += 1) {
       const date = iso(day);
-      if (novena.done[date]) states.push('done');
+      if (novena.done && novena.done[date]) states.push('done');
       else if (date > today) states.push('ahead');
-      else if (date < novena.started || (novena.finished && date > novena.finished)) states.push('off');
+      else if (dayOn(novena, date) === null) states.push('off');
       else states.push('open');
     }
-    rows.push({ key: `n${novena.id}`, title: novena.title, sub: `Novena, ${daysPrayed(novena)} of ${novena.days} days`, states, count: states.filter((state) => state === 'done').length });
+    const count = states.filter((state) => state === 'done').length;
+    rows.push({ key: `n${novena.id}`, title: novena.title, sub: novena.cadence ? `A series of ${novena.days}` : `A novena of ${novena.days} days`, states, count });
   }
   return { days, rows };
 }

@@ -29,7 +29,7 @@ export async function render(container) {
   const antiphon = marianAntiphonFor(dayFor(today()));
   add(container,
     el('header', { class: 'reader-bar' },
-      el('button', { class: 'back-button', onclick: () => goBack('#/pray') }, icon('back'), el('span', { text: 'Back' }))),
+      el('button', { class: 'back-button', onclick: () => goBack('#/tools') }, icon('back'), el('span', { text: 'Back' }))),
     el('h1', { class: 'page-title', text: 'The Divine Office' }),
 
     el('article', { class: 'card about-page' },

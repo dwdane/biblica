@@ -1,6 +1,6 @@
 # Terms of use
 
-Last changed with release 0.5.0, 10 October 2026.
+Last changed with release 0.6.0, 22 October 2026.
 
 ## The short version
 
@@ -22,6 +22,7 @@ Biblica has no imprimatur and has not been reviewed or approved by any bishop, b
 - The prayers are given in their long-established forms. The current English translations of the Roman Missal and of the Liturgy of the Hours are under copyright. The Liturgy of the Hours is not included. Of the Missal only short excerpts are given, in the Mass companion: the people's responses, the priest's short lines, and the first words of the longer prayers.
 - The Mass companion is a guide to following the Mass. It is not the Missal, and it does not carry the full approved text of the ordinary form in English. Its English of the older Mass is a translation for following the Latin, not an approved text.
 - The calendar, the holy days of obligation and the days of fasting and abstinence are worked out by the app for the United States or for the General Roman Calendar. They can be wrong, and dioceses differ. Your parish and your diocese are the authority.
+- The pages on fasting and penance, indulgences, sacramentals and the sacraments summarise the Church's law and custom in the app's own words. They are not the law itself: the Code of Canon Law, the Handbook of Indulgences and your bishops' conference are. Where a page and your parish or confessor differ, follow them. The saints' patterns of prayer are drawn from their writings and lives as the app read them, and their novenas are traditional devotions, none of which the Church requires.
 
 ## Not pastoral or medical advice
 

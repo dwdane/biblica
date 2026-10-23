@@ -2,7 +2,7 @@
 // The list of reading plans, and one plan's days.
 
 import { formatSpan } from './bible.js';
-import { go } from './context.js';
+import { go, goBack } from './context.js';
 import { allProgress, doneCount, loadPlans, nextDay, plan as loadPlan, progress as loadProgress, startPlan, stopPlan } from './plans.js';
 import { confirmSheet, el, icon, toast } from './ui.js';
 
@@ -10,7 +10,7 @@ export async function renderList(container) {
   const [plans, progress] = await Promise.all([loadPlans(), allProgress()]);
   container.append(
     el('header', { class: 'reader-bar' },
-      el('button', { class: 'back-button', onclick: () => go('#/pray') }, icon('back'), el('span', { text: 'Prayer' }))),
+      el('button', { class: 'back-button', onclick: () => goBack('#/read') }, icon('back'), el('span', { text: 'Back' }))),
     el('h1', { class: 'page-title', text: 'Reading plans' }));
   for (const item of plans) {
     const record = progress.get(item.id);

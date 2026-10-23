@@ -8,14 +8,21 @@ import { book, chapterTitle, formatSpan, verseText, verseId } from './bible.js';
 import { dayFor, go, longDate, readingsOn, refresh, today, typeLabel } from './context.js';
 import { cardInfo, moveCard, setCardOn, todayLayout } from './dashboard.js';
 import { eventsOn, kindName, obligationFor } from './days.js';
-import { db, saveSetting, settings } from './db.js';
+import { calendarOptions, db, saveSetting, settings } from './db.js';
+import { indulgencesOn, loadHelps } from './helps.js';
+import { intentionsFor } from './intentions.js';
 import { hasContent, JOURNAL_FIELDS, journalEntry } from './journal.js';
-import { patronsOn, roleLabel } from './patrons.js';
+import { allNovenas, suggestionsFor } from './novenas.js';
+import { allPatrons, feastOf, patronsOn, roleLabel, saintNovenaId } from './patrons.js';
+import { penanceNotes } from './penance.js';
 import { allProgress, doneCount, loadPlans, nextDay } from './plans.js';
-import { aspirationFor } from './prayers.js';
+import { massOn } from './practices.js';
+import { aspirationFor, prayerData } from './prayers.js';
+import { TRANSLATIONS } from './bible.js';
 import { add, clear, el, icon, openSheet } from './ui.js';
 import { dailyCard } from './view-daily.js';
 import { intentionsSheet } from './view-intentions.js';
+import { dismissSuggestion, startSheet, suggestionLine } from './view-novenas.js';
 
 const DAY_LETTERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -32,11 +39,12 @@ export async function render(container, { date }) {
   // Each card by id; a card with nothing to say today gives null and is left out.
   const builders = {
     rule: () => dailyCard(iso),
+    keep: () => keepCard(day, iso, current),
     sunday: () => sundayCard(day, iso),
     readings: () => readingsCard(iso, day, readings, masses, title, approximate),
     saints: () => patronCard(day),
     aspiration: () => aspirationCard(iso),
-    intentions: () => intentionsCard(),
+    intentions: () => intentionsCard(iso),
     journal: () => journalCard(iso, current),
     help: () => helpCard(),
     history: () => historyCard(iso),
@@ -107,22 +115,137 @@ export function arrangeSheet(onChange = refresh) {
 }
 
 /**
+ * What the day asks or offers beyond the reader's own habits: penance (the
+ * Church's days always, the customs the reader chose), the fast before
+ * Communion, an indulgence the Church grants on this day, and a novena that
+ * traditionally begins about now. Each line opens the page that explains it.
+ * The card stays away on days with nothing to say.
+ */
+async function keepCard(day, iso, current) {
+  const notes = penanceNotes(day, {
+    chosen: settings().penanceNotes || {},
+    massToday: await massOn(iso),
+    obliged: obligationFor(day).obliged,
+    region: settings().region,
+    options: calendarOptions(),
+  });
+  let grants = [];
+  try {
+    grants = indulgencesOn(iso, (await loadHelps()).indulgences.grants, calendarOptions())
+      .filter((grant) => grant.kind !== 'partial');
+  } catch {
+    // Without the file, the day simply has no note of indulgences.
+  }
+  const suggestions = iso === current ? await novenaSuggestions(iso) : [];
+  if (!notes.length && !grants.length && !suggestions.length) return null;
+
+  const card = el('section', { class: 'card keep-card' }, el('h3', { class: 'card-heading', text: 'Keeping the day' }));
+  if (notes.length) {
+    add(card, el('ul', { class: 'keep-list' }, notes.map((note) => el('li', {},
+      el('button', { class: `keep-row${note.binding ? ' binding' : ''}`, onclick: () => go('#/tools/fasting') },
+        el('span', { class: 'keep-title', text: note.title }),
+        el('span', { class: 'keep-text', text: note.text }))))));
+  }
+  if (grants.length) {
+    add(card, el('ul', { class: 'keep-list' }, grants.map((grant) => el('li', {},
+      el('button', { class: 'keep-row', onclick: () => go(`#/tools/indulgences/${grant.id}`) },
+        el('span', { class: 'keep-title', text: 'An indulgence today' }),
+        el('span', { class: 'keep-text', text: `${grant.title}. ${grant.plenaryWhen || grant.work}` }))))));
+  }
+  for (const suggestion of suggestions) {
+    const row = el('div', { class: 'keep-row suggestion' },
+      el('span', { class: 'keep-title', text: suggestion.template.name }),
+      el('span', { class: 'keep-text', text: suggestionLine(suggestion, current) }),
+      el('div', { class: 'button-row' },
+        el('button', { class: 'button quiet small', onclick: async () => { await dismissSuggestion(suggestion.template.id, suggestion.feast); row.remove(); } }, 'Not this time'),
+        el('button', { class: 'button small', onclick: () => startSheet(suggestion.template) }, 'Begin')));
+    add(card, row);
+  }
+  return card;
+}
+
+/**
+ * Novenas worth suggesting today: those for the great feasts (unless the
+ * reader asked for fewer), those for the reader's own saints, and those the
+ * reader has prayed before, a few days before they traditionally begin.
+ */
+async function novenaSuggestions(iso) {
+  const choice = settings().novenaSuggestions || 'all';
+  if (choice === 'off') return [];
+  const [patrons, novenas] = await Promise.all([allPatrons(), allNovenas()]);
+  const templates = (prayerData().novenas || []).filter((template) => template.ends);
+  const prayedBefore = new Set(novenas.map((item) => item.templateId));
+  // A saint chosen from the list is matched by its id; one kept from before the list, by its calendar key.
+  const mine = (template) => patrons.some((item) => (item.dir
+    ? Boolean(template.saint) && item.dir === template.saint
+    : Boolean(template.saintKey) && item.key === template.saintKey));
+  const candidates = templates.filter((template) => mine(template) || prayedBefore.has(template.id) || (choice === 'all' && template.suggest));
+  // A saint of the reader's with a feast but no novena of its own: the usual nine days before it.
+  const covered = new Set(candidates.filter(mine).flatMap((template) => [
+    template.saint ? `dir:${template.saint}` : null, template.saintKey ? `key:${template.saintKey}` : null,
+  ]).filter(Boolean));
+  for (const item of patrons) {
+    if (!item.feast || covered.has(item.dir ? `dir:${item.dir}` : `key:${item.key}`)) continue;
+    const feast = feastOf(item, Number(iso.slice(0, 4)), dayFor);
+    if (!feast) continue;
+    candidates.push({
+      id: saintNovenaId(item),
+      name: `Novena to ${item.name}`,
+      title: `Novena to ${item.name}`,
+      about: 'Nine days of prayer through the intercession of your saint, ending on the eve of the feast.',
+      days: 9,
+      prayers: ['prayer:our-father', 'prayer:hail-mary', 'prayer:glory-be'],
+      ends: { before: feast.slice(5) },
+    });
+  }
+  const dismissed = settings().novenaDismissed || {};
+  return suggestionsFor(candidates, iso, { current: novenas, dismissed });
+}
+
+/**
  * Shown once, the first time the app is opened: what happens to what the
  * reader writes. Said at the start, not left for Settings.
  */
 function welcomeCard() {
-  if (settings().welcomed) return null;
+  if (settings().welcomed && settings().translationAsked !== false) return null;
   const card = el('section', { class: 'card welcome-card' });
+  const done = async () => {
+    await saveSetting('translationAsked', true);
+    card.remove();
+  };
+  // Second, for a new reader: which Bible to read. Asked once; it can be changed at any time.
+  const askTranslation = () => {
+    clear(card);
+    const choose = async (id) => {
+      await saveSetting('translation', id);
+      await done();
+    };
+    add(card,
+      el('h3', { class: 'card-heading', text: 'Which Bible would you like to read?' }),
+      el('p', { class: 'muted', text: 'Both are translations of the Latin Vulgate and follow the same chapters and verses, so your notes stay on the same verses whichever you read. You can change at any time with Aa in the Bible.' }),
+      TRANSLATIONS.map((item) => el('div', { class: 'translation-choice' },
+        el('p', {}, el('strong', { text: item.name })),
+        el('p', { class: 'muted small', text: item.about }),
+        el('button', { class: item.id === 'drb' ? 'button' : 'button quiet', onclick: () => choose(item.id) }, `Read the ${item.short}`))),
+      el('p', { class: 'muted small', text: 'The prayers and the readings quote the Douay-Rheims whichever you choose, because it carries the Church’s approval.' }));
+  };
+  if (settings().welcomed) {
+    // Asked of readers who began with this release, until they answer. A reader of an
+    // earlier release has no such setting, and has long since settled on a translation.
+    askTranslation();
+    return card;
+  }
   const seen = async () => {
     await saveSetting('welcomed', true);
-    card.remove();
+    await saveSetting('translationAsked', false);
+    askTranslation();
   };
   return add(card,
     el('h3', { class: 'card-heading', text: 'Yours alone' }),
     el('p', { text: 'Everything you write in Biblica stays on this device. There is no account, and nothing is sent anywhere: nobody else can read it.' }),
     el('p', { class: 'muted', text: 'That also means nobody else can recover it, so make a backup now and then in Settings.' }),
     el('div', { class: 'button-row' },
-      el('button', { class: 'button quiet', onclick: async () => { await seen(); go('#/about/privacy'); } }, 'How privacy works'),
+      el('button', { class: 'button quiet', onclick: async () => { await saveSetting('welcomed', true); await saveSetting('translationAsked', false); go('#/about/privacy'); } }, 'How privacy works'),
       el('button', { class: 'button', onclick: seen }, 'Understood')));
 }
 
@@ -160,7 +283,7 @@ async function patronCard(day) {
   const mine = await patronsOn(day, dayFor);
   if (!mine.length) return null;
   return el('section', { class: 'card patron-card' },
-    mine.map((item) => el('button', { class: 'row-button', onclick: () => go(`#/pray/saint/${item.id}`) },
+    mine.map((item) => el('button', { class: 'row-button', onclick: () => go(`#/tools/saint/${item.id}`) },
       el('span', { class: 'row-text' },
         el('span', { class: 'row-title', text: `The feast of ${item.name}` }),
         el('span', { class: 'row-sub', text: roleLabel(item.role) || 'One of your saints' })),
@@ -319,13 +442,18 @@ function aspirationCard(iso) {
     prayer.by ? el('span', { class: 'muted small', text: prayer.by }) : null);
 }
 
-/** The intentions being prayed for, with a quick way to add and change them. */
-async function intentionsCard() {
-  const active = (await db.all('intentions')).filter((item) => !item.answered).sort((a, b) => (a.created < b.created ? 1 : -1));
+/** The intentions being prayed for, those for this day first, with a quick way to add and change them. */
+async function intentionsCard(iso) {
+  const { forDay, ongoing } = await intentionsFor(iso);
+  const active = [...forDay, ...ongoing];
   const card = el('section', { class: 'card' }, el('h3', { class: 'card-heading', text: 'Intentions' }));
   if (active.length) {
-    add(card, el('ul', { class: 'bring-list' }, active.slice(0, 5).map((item) => el('li', { text: item.text }))));
-    if (active.length > 5) add(card, el('p', { class: 'muted small', text: `and ${active.length - 5} more` }));
+    if (forDay.length) {
+      add(card, el('ul', { class: 'bring-list for-day' }, forDay.map((item) => el('li', {}, el('span', { text: item.text }), item.whenLabel ? el('span', { class: 'rule-occasion', text: item.whenLabel }) : null))));
+    }
+    const rest = ongoing.slice(0, Math.max(0, 5 - forDay.length));
+    if (rest.length) add(card, el('ul', { class: 'bring-list' }, rest.map((item) => el('li', { text: item.text }))));
+    if (ongoing.length > rest.length) add(card, el('p', { class: 'muted small', text: `and ${ongoing.length - rest.length} more` }));
   } else {
     add(card, el('p', { class: 'muted', text: 'Keep here the people and needs you are praying for.' }));
   }

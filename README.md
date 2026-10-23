@@ -1,4 +1,4 @@
-# Biblica 0.5.0
+# Biblica 0.6.0
 
 A Catholic Bible and daily prayer companion that installs to the home screen and works offline:
 the Douay-Rheims Bible (and, as an option, the Catholic Public Domain Version) with an
@@ -24,7 +24,7 @@ the top level. It is generated from the project's folders by `uv run biblica-fla
 source there, not here. Do not edit these files on GitHub either: each release records a
 fingerprint of every file, and installed copies refuse a release whose files do not match.
 
-- 79 files are the app and its papers. Replace them all for every release.
+- 90 files are the app and its papers. Replace them all for every release.
 - 73 files named `drb-*.json` are the Bible text (Douay-Rheims).
 - 73 files named `study-*.json` are the Latin and the cross-references.
 - 81 files named `fathers-*.json` and `early-*.json` are the commentary of the Fathers

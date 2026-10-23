@@ -109,7 +109,9 @@ export function obligationFor(day) {
   const solemnity = day.celebration.type === 'solemnity';
   return {
     obliged: false,
-    short: mistaken || solemnity ? 'Not a day of obligation' : null,
+    // "Mass not of obligation": on Ash Wednesday and Good Friday a bare "not of obligation"
+    // beside "a day of fasting" could be read as saying the fast is not required either.
+    short: mistaken || solemnity ? 'Mass not of obligation' : null,
     text: mistaken
       ? 'Not a day of obligation, though many go to church today and it is good to do so.'
       : 'Not a day of obligation.',
@@ -117,17 +119,26 @@ export function obligationFor(day) {
 }
 
 /** What the Church asks by way of penance on a day, or null. */
-export function penanceFor(day) {
-  if (day.fast) return 'A day of fasting and abstinence: one full meal, two smaller ones, and no meat. Fasting binds those aged 18 to 59; abstinence, those 14 and over.';
-  if (day.abstinence) return 'A day of abstinence from meat for those aged 14 and over.';
+export function penanceFor(day, region = 'us') {
+  if (day.fast) {
+    return 'A day of fasting and abstinence from meat. One full meal is allowed, and two small ones if needed, together less than a full meal, with nothing between. Abstinence binds from the 14th birthday; fasting from the 18th birthday until the 59th. The sick, the pregnant and nursing, and anyone whose health would suffer are excused.';
+  }
+  if (day.abstinence) {
+    return region === 'us'
+      ? 'A day of abstinence from meat, for everyone from the 14th birthday.'
+      : 'A Friday of Lent: abstinence from meat from the 14th birthday, unless your bishops’ conference allows another penance in its place.';
+  }
   if (day.weekday !== 5) return null;
   // A solemnity lifts the Friday penance, and so do the days of the Easter octave, which
   // are kept as solemnities. All Souls ranks with the solemnities in the calendar but is not one.
   const solemnity = (day.celebration.type === 'solemnity' && day.celebration.key !== 'AllSouls') || /OctaveEaster$/.test(day.temporal.key);
   if (solemnity) {
-    return day.season === 'lent' ? 'No abstinence today: a solemnity that falls on a Friday lifts it.' : null;
+    return day.season === 'lent' ? 'No abstinence today: a solemnity that falls on a Friday lifts it.' : 'No Friday penance today: a solemnity that falls on a Friday lifts it.';
   }
-  return 'Friday is a day of penance. Outside Lent, in the United States, another penance may take the place of abstaining from meat.';
+  if (day.season === 'lent' && region !== 'us') return 'A Friday of Lent: abstinence from meat, unless your bishops’ conference allows another penance in its place.';
+  return region === 'us'
+    ? 'Friday is a day of penance. Outside Lent, in the United States, another penance may take the place of abstaining from meat, which the bishops still put first.'
+    : 'Friday is a day of penance. The Church’s rule is abstinence from meat, unless your bishops’ conference allows another penance in its place.';
 }
 
 /**

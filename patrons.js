@@ -116,6 +116,16 @@ const DESCRIPTORS = new Set([
  * Teresa of Jesus", and "Saints Cornelius, Pope, and Cyprian, Bishop,
  * Martyrs" becomes "Saints Cornelius and Cyprian".
  */
+/**
+ * The id of the usual nine days before a saint's feast, for a saint with no
+ * novena of its own: the same whether it is begun from Today, the saint's page
+ * or the list of saints, so that one begun anywhere is not suggested again.
+ * A saint from the list is known by its id there; one typed in, by the record.
+ */
+export function saintNovenaId({ dir = null, id = null }) {
+  return dir ? `own-saint-${dir}` : `own-saint-p${id}`;
+}
+
 export function shortName(name) {
   const [first, ...rest] = (name || '').split(',').map((part) => part.trim());
   const kept = rest.filter((part) => !part.toLowerCase().split(/\s+/).every((word) => DESCRIPTORS.has(word)));

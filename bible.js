@@ -155,6 +155,14 @@ export async function saveForOffline(paths) {
   }
 }
 
+/**
+ * Keep some books of a translation for reading offline, one after another and
+ * without loading them into memory: the books a novena quotes, when it is begun.
+ */
+export async function keepBooksOffline(ids, translationId = 'drb') {
+  await saveForOffline(ids.map((id) => `${folderOf(translationId)}${id}.json`));
+}
+
 export function isLoaded(id) {
   return loaded.has(keyFor(id));
 }

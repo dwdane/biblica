@@ -1,5 +1,303 @@
 # Release notes
 
+## 0.6.0: habits, novenas by the calendar, and Tools
+
+Your notes for this round, one by one; then where I chose differently from what you asked, and what
+I could not do.
+
+### What you asked for
+
+- **"Novenas, tracking what day you are on, and which days of the calendar it should be there for,
+  before rolling off."** A novena now lives on the calendar. Begun on 19 October, it is on Today's
+  list on the 19th to the 27th, each day saying which it is ("Day 3 of 9"), and it leaves after the
+  27th whether or not you marked anything. Its page shows every day as a chip (today's marked) and
+  tells you the date of each. Missed a day? **"Add one at the end"** runs it a day longer, if you
+  want that; otherwise simply carry on. A novena you had under way in 0.5 keeps the place you had
+  reached and lays its remaining days on the calendar from today; one where no day was ever marked
+  runs from the day it was begun, so if that was long ago you will find it under Ended. Under
+  **Ended** you can look back at the ones that are finished.
+- **"Suggesting novenas nine days (or whatever is appropriate) before a feast."** Each novena tied
+  to a feast knows its traditional days: the Holy Spirit from the day after the Ascension, Saint
+  Jude from 19 October, the Immaculate Conception from 29 November, the Seven Sundays of Saint
+  Joseph on the seven Sundays before his feast, Montfort's thirty-three days ending on the eve of
+  the Immaculate Conception. A card on Today suggests one from three days before it begins until two
+  days after, with **Begin** and **Not this time**. To keep this from becoming noise, only the great
+  ones are suggested (Pentecost, Divine Mercy, the Sacred Heart, the Assumption, Christ the King,
+  All Souls, the Immaculate Conception, Christmas, Saint Joseph), plus any you have prayed before
+  and any of **your own saints**; a saint of yours without a novena of its own gets the usual nine
+  days before the feast. The Novenas page lets you choose: great feasts and my saints, my saints
+  only, or never.
+- **"Novena of Saint Elmo, Saint Jude, etc., and my intention for the nine days."** Forty-four
+  novenas and longer devotions, up from nine. Each asks for your intention when you begin, keeps it
+  at the top of every day, and lets you change it. **Saint Elmo:** your question never got an
+  answer, so I followed the English usage: Saint Elmo is **Saint Erasmus**, bishop and martyr, one
+  of the Fourteen Holy Helpers, 2 June, ending 1 June. In Spain and Portugal "San Telmo" means
+  **Blessed Peter González**, whose novena is there too (14 April). **Saint Jude**: from 19 October,
+  built on the collect of his feast and his own letter ("keep yourselves in the love of God"); the
+  familiar "Most holy apostle, Saint Jude" prayer is not in, because the earliest printing anyone
+  could find is from 1954 (see below). The others include the Divine Mercy (with the intention for
+  each of the nine days), the Holy Spirit (a gift of the Spirit each day), Our Lady of Sorrows (a
+  sorrow each day), Saint Joseph, Saint Anthony, Saint Thérèse, Saint Michael, Saint Raphael, Saint
+  Anne, Saint Rita, Saint Peregrine, Saint Gerard, Saint Dymphna, Saint Benedict, Saint Patrick,
+  Saint Francis, the Infant of Prague, Guadalupe, Lourdes, Mount Carmel, the Miraculous Medal,
+  Perpetual Help, the Rosary, the Assumption, Christ the King, the holy souls, and the Novena of
+  Grace. Where a devotion carries a promise from private revelation, or a legend, or a chain prayer
+  of the "never known to fail" kind, a quiet note says so.
+- **"Custom novena prayers: which prayer for what day, shown on the right day."** In a novena's edit
+  sheet, **Arrange day by day**: for each day, words of your own and any prayers from the library.
+  They appear on that day, after the novena's own words for the day and before the prayers said
+  every day. "A novena of your own" lets you choose the prayers and the number of days from scratch.
+- **"Intentions for certain days, certain events."** An intention can now be **every day** (as
+  before), **on a day** (the day of a surgery), **until a day** (until an exam), **each year** (an
+  anniversary of a death) or on **some weekdays**. On its day it comes first on Today's Intentions
+  card and in the examen, with a word saying why; on other days it waits.
+- **"'My rule of life' makes it unclear that these are my selections; make it clear where to
+  edit."** It is **My habits** now, everywhere. The page says it holds only what you put there; each
+  row has a pencil that opens it for changing; Add and Start from a pattern are at the top; the
+  Today card's heading is "My habits" with an edit button.
+- **"My saints should have a drop-down of prepopulated saints, with their prayers, as well as a
+  custom option."** **Add a saint** now opens a list of **291 saints** you can search: every saint
+  and blessed of the calendar (celebrations of several, such as Simon and Jude, given as each
+  person), plus 66 more who are loved but not in the calendar, among them Saint Erasmus, Saint
+  Christopher, Saint Peregrine, Saint Gerard, Saint Dymphna, Saint Joan of Arc, Saint Bernadette,
+  Saints Louis and Zélie Martin, Saint Carlo Acutis, Saint Pier Giorgio Frassati, Saint Gianna
+  Beretta Molla and the Holy Helpers missing from the calendar. Each has a page: who they were, the
+  feast, what they are patron of, any caution (legend is called legend), the **collect of their
+  Mass** from the 1962 Missal in English and Latin where they have one of their own (139 do), their
+  prayers, and their novena. **Someone not in the list** keeps the old way of typing a name and a
+  feast. **All the saints**, under Tools, browses the list by name or by feast.
+- **"Divine Mercy chaplet."** **Pray, The Chaplet of Divine Mercy**: bead by bead, as the Rosary is,
+  with the decades marked. The familiar English comes from a translation of Saint Faustina's Diary
+  that is under copyright, so the words are **our own translation from her Polish**; you will find
+  them almost the same ("Eternal Father, I offer thee the Body and Blood, Soul and Divinity…"). The
+  Divine Mercy novena from Good Friday uses it each day.
+- **"Way more prayers."** **161**, up from 63. Among them: the litanies of the **Holy Name**, the
+  **Holy Spirit** and the **Saints**; the **seven penitential psalms**; the **Stabat Mater**, the
+  **Ave Maris Stella**, the **Veni Sancte Spiritus**, **O Sacrum Convivium**, **Ave Verum**, **Panis
+  Angelicus**; Saint Thomas's and Saint Bonaventure's thanksgivings after Communion; the **Universal
+  Prayer** of Clement XI; **Before Confession** and **After Confession**; **On Waking** and **Before
+  Sleep**; prayers for the family and home, for a house, a **parent's blessing**, for the sick and
+  the dying, for the dead and for those who mourn, for peace and for the Church; the **Seven Sorrows
+  and Joys of Saint Joseph**, the **Thirty Days' Prayer**, the Miraculous Medal's prayer, the words
+  of the **Saint Benedict medal**; Night Prayer from Compline; and the collects of the great feasts.
+  The library has new sections: Family and home, The sick and the dying, The Church and the world.
+- **"Indulgences, partial and plenary, for different days or activities, and the conditions."**
+  **Tools, Indulgences**: what an indulgence is and is not, the conditions for a plenary indulgence
+  (and what "detachment from all sin" means), the four general grants, then the particular grants of
+  the Church's handbook: those **on certain days** (in order of the next day each falls: All Souls
+  week, the prayer before a crucifix on the Fridays of Lent, the Veni Creator on 1 January and
+  Pentecost, Divine Mercy Sunday…), those **on days of your own** (your baptism anniversary, your
+  parish's feast), and those **at any time**, each with its prayers a tap away. The special grant of
+  the **Year of Saint Francis** (to 10 January 2027) is there while it lasts. On Today, the
+  **Keeping the day** card names a plenary indulgence of the day. Nothing counts or records
+  indulgences.
+- **"Any other common Catholic habits done daily?"** Most of them are now in the app as something
+  you can add to My habits: the morning offering, the Angelus, grace at meals, an examen, three Hail
+  Marys at night, a visit to the Blessed Sacrament, spiritual Communion, the Rosary or a decade,
+  short prayers through the day, Scripture, Night Prayer, a midday pause, a word to the guardian
+  angel, prayer for the dead. The Tools guides cover the small customs: holy water at the door, the
+  sign of the cross passing a church, a prayer at a siren or a funeral, wearing a scapular or medal,
+  blessing your children at night, the Friday penance.
+- **"For the day profiles, select habits of different saints as your daily list."** **Start from a
+  pattern** now has **From the saints**: ten patterns of daily life, each drawn from what the saint
+  wrote or what is documented of them: Francis de Sales (as he taught Philothea), Newman ("a short
+  road to perfection"), Alphonsus, Josemaría Escrivá, Thérèse, Thomas More, Louis and Zélie Martin,
+  Pier Giorgio Frassati, Carlo Acutis, and Ignatius (the examen). Every entry says why it is there
+  and where it comes from; the heavier ones come **unticked**, and none of their bodily penances are
+  included (Francis de Sales himself wanted none taken on without a director).
+- **"Quality over quantity; proper reflection; more things like the evening examen."** Four things.
+  **Pray it slowly**: any plain prayer can be prayed a phrase at a time, staying with each as long
+  as it gives you something, which is Saint Ignatius's second method of prayer. **A line of
+  recollection** from the saints comes before each prayer ("Before you begin: whom are you about to
+  speak to?"); Settings can turn it off. **Nine new guided prayers**, like the examen, a few steps
+  each with silence: Night Prayer, a Midday pause, Before Mass, Forgiving someone, Offering a
+  suffering, Before a decision, Handing over a worry, In a moment of temptation, and Praying a
+  prayer slowly. And the **interior habits** (next but one).
+- **"Ask on first opening which Bible, with the nuances of each."** After the note on privacy, a new
+  reader is asked: the Douay-Rheims or the CPDV, with a line on each (the imprimatur, the English,
+  the notes staying on the same verses). Readers of earlier releases are not asked.
+- **"Search into the Bible tab; Tools in its place; Pray just for prayer."** The tabs are **Today,
+  Bible, Pray, Tools, Notes**. Search is a button in the reader's bar and in the book list, beside
+  Reading plans. **Tools** holds the saints, the Mass, Confession, the guides on Communion,
+  Anointing and Mass intentions, Fasting and penance, Indulgences, the Divine Office, the guides to
+  sacramentals and customs, and the Library. **Pray** holds your habits, intentions and novenas, the
+  prayers of the day, the times of prayer, the Mass prayers, prayers for particular needs, and the
+  library of prayers. Old links still work.
+- **"Reminders to fast on special days, before Mass, Wednesdays, Fridays."** On Today, **Keeping the
+  day** notes Ash Wednesday and Good Friday (who is bound, who is excused), the Fridays of Lent and
+  every Friday's penance (and that the Friday penance lifts on a solemnity), the day before, and the
+  **one-hour fast before Communion** on Sundays and holy days. The old customs (Wednesday, Saturday,
+  the Ember days, the vigils, the weekdays of Lent) appear only if you turn them on in **Tools,
+  Fasting and penance**, and are called customs. For a real alarm, see below.
+- **"Guides for the scapular, consecrations, holy water etc., but not as one of the main things."**
+  Under **Tools**: eighteen short guides, each saying what the practice is for inwardly, how it is
+  done, and what it is not: holy water, blessed objects, the Brown Scapular, the Miraculous Medal,
+  the Saint Benedict medal, relics, candles, palms and ashes; the sign of the cross and
+  genuflecting, the Angelus, small daily customs, blessing your home, blessing your children, holy
+  hours, praying for the dead, consecration; receiving Communion well, the Anointing of the Sick,
+  asking for a Mass to be offered.
+- **"Focus on internal habits and transformation, not external actions."** This is where the release
+  puts its weight. **Interior habits**: twenty-four, each a page with what it is, what the saints
+  said (marked as their words or as our summary), how to begin, a question for the night and, where
+  needed, a caution against scruples: the presence of God, the duty of the moment, the heroic
+  minute, no complaining, guarding the tongue, thinking well of others, kindness to the one you find
+  hardest, forgiving quickly, not excusing yourself, small hidden sacrifices, custody of the eyes
+  and of screens, gratitude, handing over worries, patience with yourself and with others, offering
+  it up, silence, turning from bad thoughts, serving in person, joy, remembering death, purity of
+  heart, work done well, keeping Sunday. You can add any to My habits, and choose **one as your
+  focus** for two, four or six weeks: Saint Ignatius's particular examen. It shows on Today, the
+  midday pause and the examen ask about it, and nothing is counted. Every guide in Tools, and every
+  devotion's note, says what it is for inwardly.
+
+### Where I chose differently
+
+- **Reminders.** A web app cannot send itself a notification without a server, which would break the
+  rule that nothing leaves your phone. Instead, a novena's page and Fasting and penance offer **"Add
+  to my phone's calendar"**: a small calendar file with an alert on each day, which your Calendar
+  takes in. Your intention is left out of it unless you tick the box, since calendars are often
+  copied to an account elsewhere. **I could not test this on an iPhone** (see below).
+- **Saints' patterns are not copied whole.** Their bodily penances, night vigils and the like are
+  left out, and the heavier entries come unticked: a parent's devotion is not a monk's.
+- **Nothing is counted.** No indulgence tally, no novena streak, no focus score.
+- **Texts I left out rather than guess.** The prayer to Saint Jude, the Novena of Grace prayer,
+  Montfort's act of consecration, Flos Carmeli, the Act of Dedication to Christ the King and Saint
+  Thomas's prayer before Mass: none could be dated to a printing before 1931, the project's test for
+  bundling. Where a novena would have used one, it uses the feast's collect and Scripture instead.
+
+### Upgrading from 0.5
+
+Nothing to do on your device. Novenas under way keep their place; your list keeps its entries;
+backups from any earlier release restore. For a deployment from a phone, upload **zip 1 only** (the
+app, now 90 files): the Bible, the study material, the Fathers and the CPDV have not changed. Then
+open `check.html`. From folders: replace the files; `data/helps.json` and `data/saints.json` are
+new.
+
+### What to test by hand
+
+1. **The calendar file, on your iPhone.** Begin a novena, tap "Add its days to my phone's calendar",
+   choose a time, and open the file. Does Calendar offer to add the events, and does each have its
+   alert? Then try Tools, Fasting and penance, "Add these days to my phone's calendar". This is the
+   one feature I could not check at all: it depends on how iOS hands a calendar file from a
+   home-screen app to Calendar.
+2. **A novena from 0.5**, if you have one under way: after the update, is it on the day you
+   expected?
+3. **Saint Jude and Saint Elmo.** Begin Saint Jude with an intention; look at day 2; add a day at
+   the end; open Saint Erasmus from All the saints.
+4. **Arrange day by day** in a novena's edit sheet: put a prayer on day 3 only, then open day 3.
+5. **My habits.** Start from a pattern, From the saints, Saint Francis de Sales. Untick a few, add,
+   then change one with its pencil. Then open Interior habits, pick one and make it your focus for
+   two weeks, and do the evening examen.
+6. **Pray it slowly**: open the Our Father, "Pray it slowly, phrase by phrase". Does it help, or get
+   in the way?
+7. **Intentions**: add one for a day next week and one for each year on an anniversary; step Today
+   to those days.
+8. **Tools**: read the Brown Scapular guide and Indulgences as if you knew nothing. Anything you
+   would argue with?
+9. **First open**: on a second device or after "Erase everything", is the question about which Bible
+   clear?
+
+### How this release was researched
+
+Seven research passes went before the building, each writing its findings with the source of every
+claim marked as primary, secondary or unverified: fasting and penance, indulgences, three batches of
+prayers, novenas and their dates, the counted devotions (First Fridays and the rest), sacramentals
+and customs, the saints for the list, the saints' patterns of life, and the interior habits and
+guided prayers. The web was harder to reach than in earlier rounds: the shared search allowance ran
+out early and the Holy See's site was mostly refused, so the old prayer books were read word for
+word from Project Gutenberg's copies, the Missal and Breviary from Divinum Officium, and several
+Church documents from secondary sources. What could not be checked was left out or said plainly;
+`docs/SOURCES.md` lists what rests on what.
+
+### How this release was checked
+
+- **104 logic tests** in Node (16 new: novenas on calendar days and their upgrade from 0.5, series
+  on first Fridays, traditional dates and suggestions, Scripture in a novena, days named by rule,
+  the days of penance with the Ember days and vigils, intentions on days, calendar files, the
+  chaplet, praying slowly) and **325 pipeline tests** (59 new: the checks on novenas, chaplets,
+  habits, guided prayers and saints' patterns, days the app can and cannot place, the Tools
+  material, the list of saints and its collects, and that every shipped file matches its sources).
+- **Browser checks at phone size**, with the content security policy on throughout: reader 40,
+  prayer 96, study 196, the Mass companion and Settings 103, release 0.5's script 71, and a new
+  script for this release, 86, each run on the folder layout and again on the flat copy you upload.
+  `release06.py` drives what is new: the five tabs and search in the Bible; the question about which
+  Bible for a new reader only; My habits, a saint's pattern with its unticked entries and sources,
+  an interior habit on Today and as the focus, asked about in the examen; novenas begun on their
+  traditional day, on Today by the calendar, a day added, the Divine Mercy's own words for each day,
+  your own words on a day, a First Friday series on first Fridays only, a calendar file; a
+  suggestion and setting it aside; intentions on a day and each year; the notes on fasting and
+  penance, customs only when chosen, an indulgence of the day; Tools, the guides, the indulgences,
+  fasting; the saints, Saint Elmo found, added to my saints; the chaplet bead by bead; praying
+  slowly; and the Tools material offline.
+- **The update path**: from 0.5.0 (55 checks) and from 0.2.1 (57), and the path your phone takes, an
+  installed flat 0.5.0 taking flat 0.6.0 (13 checks): an upload with two files left behind is not
+  installed; the completed one is, with the saved Bible and a note kept; `check.html` passes.
+
+### What the independent reviews found
+
+Two reviews were made before release by separate agents that had not written the work: the code, run
+against its own server, and the devotional and catechetical content, read as a careful catechist
+would, with the Latin checked against the 1962 books and the indulgences against the 1999 handbook.
+Neither found anything that would lead a reader to do the wrong thing: the fasting ages, who is
+excused, the conditions for indulgences, the grants and their days and every novena's dates were
+confirmed. Everything below is fixed.
+
+**The code.** A novena from 0.5 could be upgraded from the wrong day: if the first screen to touch
+it was Today stepped to another date, its start moved by the gap and was saved that way. It is now
+always upgraded from the real today. The usual nine days before the feast of one of your saints had
+a different name depending on where it was begun, so Today went on suggesting one already under way.
+The start sheet printed the word "null" under the prayers of most novenas. A First Fridays series
+begun on a Thursday said it was on the list for today. Looking back lost the 0.5 marks of a novena
+the upgrade had moved. The passages a novena quotes were not saved for offline use: they now are,
+when you begin it (fetching them at every start instead made installing an update fail in testing,
+so I did not). Smaller: the list of tab screens used to decide when an update may restart the app
+still named Search; a screen reader heard "Hail Mary" on every bead of the Divine Mercy chaplet; a
+29 February anniversary showed an empty date when edited; a failure to load the saints said the
+saint was not in the list. One finding I kept as it was, on purpose: a 0.5 novena with no day marked
+runs from the day it was begun, so one begun long ago is found under Ended rather than coming back
+as day 1. And one I found myself while integrating: Saint Simon's page offered Saint Jude's novena
+(they share a calendar day), and so did Today to a reader devoted to Saint Simon.
+
+**The content.** The guide for forgiving quoted 1 Peter 2:23 as the Douay-Rheims has it, "him that
+judged him unjustly", which there means Pilate, beside "give the judgement to God"; it now alludes
+to the verse in its own words and shows Luke 23:46. Two guides told someone who had broken the fast
+before Communion to wait for another day; the law allows receiving at a later Mass once the hour has
+passed, and they now say so (and that those who care for the sick are excused). Notes from the
+research ("not verified here") had been left in five novenas' descriptions. In the day view the
+Fridays of Lent gave everyone the United States rule; the September Ember days followed the rule
+from before 1960; an Ember note could fall on Saint Joseph's day; the eve of the Immaculate
+Conception was shown on 7 December even in a year when the feast moves to the 9th. The collect of
+Christ the King said "make all things new" for *instaurare*, which is "restore". The thanksgivings
+of Saint Thomas and Saint Bonaventure are now "traditionally ascribed". The guide to relics said the
+Church never vouches for one; she authenticates them, as a careful human judgement. The Sabbatine
+privilege is no longer "best left aside" but "no one is obliged to believe it". The First Fridays'
+promise is dated to the letter of 1688 that records it; the Thirty Days' Prayer's note named the
+wrong pious opinion; and the Divine Mercy prayers now say why they are free to use.
+
+### Known limitations
+
+- **Nothing here has run on a physical phone**, and the calendar file depends entirely on iOS.
+- **The app cannot send notifications** without a server. The calendar file stands in for them, and
+  it does not follow later changes: add a day to a novena and the file you added before does not
+  know.
+- **Several prayers rest on one old printing**, most of them from Hammer and Lings, copied word for
+  word; a second printing was not found. The Latin of the Compline texts and of *O Iesu vivens in
+  Maria* was supplied from knowledge of the books, not from a scan.
+- **41 of the 66 saints added beyond the calendar rest on one source**, mostly the old Roman
+  Martyrology and the *Catholic Encyclopedia*; their pages say where the story is legend. The
+  patterns of Saint Josemaría, Saint Thomas More, Saint Pier Giorgio and Saint Carlo rest partly on
+  secondary accounts.
+- **Some Church documents were read only through secondary sources** this time, because the Holy
+  See's site could not be reached; a few paragraph numbers are as those sources gave them.
+- **Familiar texts are missing for copyright reasons**: the prayer to Saint Jude, the Novena of
+  Grace prayer, Montfort's act of consecration (his thirty-three days offer "My Queen, my Mother"
+  for the day itself) and the Act of Dedication to Christ the King.
+- **Suggestions follow the general calendar**, or the United States one. A feast your diocese moves,
+  or a saint kept on another day where you live, is not followed.
+- **Offline, a passage shows only if its book is on the device.** A novena's books are saved when
+  you begin it, and the prayers' books at the start as before; a guided prayer or habit that quotes
+  another book needs to have been opened once online (or the whole Bible saved, in Settings).
+- Everything listed under 0.5.0 below still applies, except where this release changed it.
+
 ## 0.5.0: a rule of life, a second translation and the earliest writings
 
 Your notes for this round, one by one, then something I found that you did not ask about.

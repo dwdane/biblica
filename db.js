@@ -150,6 +150,13 @@ export const DEFAULT_SETTINGS = {
   massLanguage: 'both', // the traditional Mass in 'la', 'en' or 'both'
   massKind: 'low', // postures shown for the traditional Mass: 'low' or 'sung'
   massWake: true, // keep the screen awake while following the Mass
+  translationAsked: null, // a reader new in 0.6 is asked which Bible to read: false until answered, true after
+  penanceNotes: {}, // which days of penance Today mentions, by id (see PENANCE_NOTES in penance.js); missing means the default
+  focus: null, // the interior habit the reader is working on: { habit, since, until } (see habits.js)
+  novenaSuggestions: 'all', // novenas suggested on Today: 'all' (great feasts and my saints), 'mine' or 'off'
+  novenaDismissed: {}, // suggestions set aside: { [template id]: the feast's date }
+  calendarAlertTime: null, // the hour last chosen for alerts in a calendar file ("08:00")
+  beforePrayer: true, // a line inviting recollection above vocal prayers
 };
 
 let settingsCache = null;

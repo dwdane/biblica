@@ -307,3 +307,41 @@ export function startingRules() {
   const data = prayerData();
   return data && data.rules ? data.rules : [];
 }
+
+/**
+ * The phrases of a prayer, one after another, for praying it slowly: each
+ * line of the English as it is set out, without rubrics, headings or the
+ * marks of versicle and response. A prayer that quotes Scripture or includes
+ * other prayers is not offered for this, so nothing here has to expand them.
+ */
+export function slowPhrases(prayer) {
+  const stanzas = prayer.en || prayer.la || [];
+  const phrases = [];
+  for (const stanza of stanzas) {
+    for (const line of stanza) {
+      if (/^(! |# |@ |> )/.test(line)) continue;
+      const text = line.replace(/^[VR]\. /, '').replace(/^- (.*) \| (.*)$/, '$1, $2.').trim();
+      if (text) phrases.push(settings().holyGhost ? text.replace(/Holy Spirit/g, 'Holy Ghost') : text);
+    }
+  }
+  return phrases;
+}
+
+/** Whether a prayer can be prayed phrase by phrase: plain lines only, and not too long to dwell on. */
+export function canPraySlowly(prayer) {
+  if (!prayer || !prayer.en || prayer.category === 'litany' || prayer.category === 'scripture' || prayer.category === 'part') return false;
+  const lines = prayer.en.flat();
+  return !lines.some((line) => /^(@ |> |- )/.test(line)) && slowPhrases(prayer).length >= 2 && slowPhrases(prayer).length <= 40;
+}
+
+/**
+ * A line of invitation to recollection, shown above a prayer so that it is
+ * said with attention: { text, by, verbatim }, the same all day.
+ */
+export function beforePrayerFor(iso) {
+  const data = prayerData();
+  const list = data && Array.isArray(data.beforePrayer) ? data.beforePrayer : [];
+  if (!list.length) return null;
+  const days = Math.floor(Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) / 86400000);
+  return list[((days % list.length) + list.length) % list.length];
+}

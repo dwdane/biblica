@@ -1,7 +1,7 @@
 // view-daily.js
-// The reader's rule of life: the card on Today, the screen for arranging
-// it, a way to start from a rule suited to one's state of life, and the
-// month view for looking back.
+// The reader's habits (their rule of life): the card on Today, the screen
+// for arranging them, a way to start from a pattern suited to one's state of
+// life or drawn from a saint's own day, and the month view for looking back.
 //
 // The card is a quick way into what the reader tries to do today: every
 // day, and on the days some things fall (a first Friday, a feast). It has no
@@ -10,7 +10,8 @@
 
 import { dayFor, go, monthName, refresh, today } from './context.js';
 import { saveSetting, settings } from './db.js';
-import { setNovenaPrayed } from './novenas.js';
+import { currentFocus, habits } from './habits.js';
+import { currentNovenas, setNovenaPrayed } from './novenas.js';
 import { loadPlans, allProgress } from './plans.js';
 import {
   DEVOTION_NAMES, TIMES, currentPractices, endPractice, guides, itemsFor, monthHistory, savePractice, setDone, titleFor,
@@ -32,7 +33,8 @@ const marksOn = () => settings().dailyMarks === true;
 function kindIcon(item) {
   if (item.novena) return 'star';
   const [kind, name] = (item.practice && item.practice.ref ? item.practice.ref : '').split(':');
-  if (kind === 'devotion') return { rosary: 'star', stations: 'cross', lectio: 'bible', examen: 'hours' }[name] || 'cross';
+  if (kind === 'habit' || kind === 'focus') return 'leaf';
+  if (kind === 'devotion') return { rosary: 'star', stations: 'cross', lectio: 'bible', examen: 'hours', 'divine-mercy': 'beads' }[name] || 'cross';
   if (kind === 'guide') return 'hours';
   if (kind === 'journal') return 'edit';
   if (kind === 'readings') return 'bible';
@@ -56,6 +58,16 @@ const DEFAULT_TIME = {
   'devotion:examen': 'evening',
   journal: 'evening',
   'guide:mental-prayer': 'morning',
+  'guide:morning': 'morning',
+  'guide:mass-prep': 'morning',
+  'guide:midday': 'day',
+  'devotion:divine-mercy': 'day',
+  'guide:night-prayer': 'evening',
+  'prayer:three-hail-marys': 'evening',
+  'prayer:on-waking': 'morning',
+  'prayer:before-sleep': 'evening',
+  'prayer:actiones-nostras': 'morning',
+  focus: 'morning',
 };
 
 // ---------------------------------------------------------------------------
@@ -79,29 +91,35 @@ async function drawCard(card, iso) {
   const redraw = () => drawCard(card, iso);
   clear(card);
 
-  const head = (editLabel = 'Edit') => el('div', { class: 'card-head' },
+  const head = () => el('div', { class: 'card-head' },
     el('h3', { class: 'card-heading', text: iso === today() ? 'For today' : 'For this day' }),
-    el('button', { class: 'text-button small', onclick: () => go('#/pray/list') }, editLabel));
+    el('button', { class: 'text-button small', 'aria-label': 'Change my habits', onclick: () => go('#/pray/list') }, icon('edit', 16), 'My habits'));
+  // The interior habit the reader is working on, if any: one line, a tap from its page.
+  const focus = currentFocus(today());
+  const focusLine = focus && iso >= focus.since ? el('button', { class: 'focus-line', onclick: () => go(focus.over ? '#/pray/focus' : `#/pray/habit/${focus.habit.id}`) },
+    el('span', { class: 'focus-label', text: 'Your focus' }),
+    el('span', { class: 'focus-title', text: focus.habit.title }),
+    focus.over ? el('span', { class: 'rule-occasion', text: 'Its weeks are over' }) : null) : null;
 
   if (!items.length) {
     const haveList = (await currentPractices()).length > 0;
     if (haveList) {
-      add(card, head(), el('p', { class: 'muted', text: 'Nothing from your rule of life falls on this day.' }), footer([]));
+      add(card, head(), focusLine, el('p', { class: 'muted', text: 'None of your habits falls on this day.' }), footer([]));
       return true;
     }
-    if (settings().hideDailySetup) return false;
+    if (settings().hideDailySetup) return focusLine ? Boolean(add(card, head(), focusLine)) : false;
     add(card,
-      el('h3', { class: 'card-heading', text: 'Your rule of life' }),
-      el('p', { text: 'What do you try to do each day? Saint Francis de Sales advises a few practices that fit your state of life, chosen once and kept: an offering in the morning, a time of prayer, a look back at night. Choose yours, and they will be here each day, a tap away.' }),
+      el('h3', { class: 'card-heading', text: 'Your habits' }),
+      el('p', { text: 'What do you try to do each day? Saint Francis de Sales advises a few practices that fit your state of life, chosen once and kept: an offering in the morning, a time of prayer, a look back at night, and a habit or two of the heart. Choose yours, and they will be here each day, a tap away.' }),
       el('div', { class: 'button-row' },
         el('button', { class: 'button quiet', onclick: () => go('#/pray/list') }, 'Choose myself'),
-        el('button', { class: 'button', onclick: () => ruleSetupSheet(refresh) }, 'Help me choose')),
+        el('button', { class: 'button', onclick: () => ruleSetupSheet(refresh) }, 'Start from a pattern')),
       el('div', { class: 'daily-footer' },
         el('button', { class: 'text-button', onclick: async () => { await saveSetting('hideDailySetup', true); card.remove(); } }, 'Not now')));
     return true;
   }
 
-  add(card, head());
+  add(card, head(), focusLine);
   const groups = TIMES.map(([id, label]) => [label, items.filter((item) => item.time === id)]).filter(([, list]) => list.length);
   for (const [label, list] of groups) {
     if (groups.length > 1) add(card, el('p', { class: 'daily-time', text: label }));
@@ -181,59 +199,87 @@ async function prayedSheet(iso, onDone) {
 
 export async function renderList(container) {
   const listNode = el('div', {});
+  const now = today();
 
   async function draw() {
-    const practices = await currentPractices();
+    const [practices, novenas] = await Promise.all([currentPractices(), currentNovenas(now)]);
     clear(listNode);
     if (!practices.length) {
-      add(listNode, el('p', { class: 'empty', text: 'Your list is empty. Add a prayer or two to begin.' }));
-      return;
+      add(listNode, el('p', { class: 'empty', text: 'Nothing here yet. Add a prayer or a habit, or start from a pattern.' }));
     }
     for (const [timeId, label] of TIMES) {
       const group = practices.filter((item) => (item.time || 'any') === timeId);
       if (!group.length) continue;
       add(listNode, el('h3', { class: 'list-heading', text: label }));
       for (const practice of group) {
-        add(listNode, el('button', { class: 'list-row', onclick: () => entrySheet(practice, draw) },
+        add(listNode, el('button', { class: 'list-row habit-row', 'aria-label': `Change ${practice.title}: ${scheduleLabel(practice)}`, onclick: () => entrySheet(practice, draw) },
           el('span', { class: 'row-text' },
             el('span', { class: 'row-title', text: practice.title }),
-            el('span', { class: 'row-sub', text: scheduleLabel(practice) })),
-          icon('forward', 18)));
+            el('span', { class: 'row-sub', text: [scheduleLabel(practice), practice.from ? `from ${practice.from}` : null].filter(Boolean).join(' · ') })),
+          icon('edit', 18)));
       }
+    }
+    if (novenas.length) {
+      add(listNode,
+        el('h3', { class: 'list-heading', text: 'Added by your novenas' }),
+        el('p', { class: 'muted small', text: 'Each is on your list on its days and leaves when it ends.' }),
+        novenas.map((item) => el('button', { class: 'list-row', onclick: () => go(`#/pray/novena/${item.id}`) },
+          el('span', { class: 'row-text' },
+            el('span', { class: 'row-title', text: item.title }),
+            el('span', { class: 'row-sub', text: `${item.days} ${item.stepName ? `${item.stepName.toLowerCase()}s` : 'days'}` })),
+          icon('forward', 18))));
     }
   }
 
+  const focus = currentFocus(now);
   add(container,
     el('header', { class: 'reader-bar' },
       el('button', { class: 'back-button', onclick: () => go('#/pray') }, icon('back'), el('span', { text: 'Prayer' }))),
-    el('h1', { class: 'page-title', text: 'My rule of life' }),
-    el('p', { class: 'muted page-intro', text: 'What you try to do, every day and on certain days: a first Friday, a feast, the Fridays of Lent. It all appears under “For today” on Today, a tap away. Keep it small enough to keep; Saint Francis de Sales advises devotion that fits your state of life, looked over once a year. Novenas you start are added by themselves while they last.' }),
+    el('h1', { class: 'page-title', text: 'My habits' }),
+    el('p', { class: 'muted page-intro', text: 'Your own rule of life: the prayers and habits you have chosen, and when they come. Nothing is here unless you put it here, and everything here is yours to change. Tap one to change its days or remove it. Keep it small enough to keep: Saint Francis de Sales advises devotion that fits your state of life, looked over once a year.' }),
+    el('div', { class: 'button-row' },
+      el('button', { class: 'button', onclick: () => addSheet(draw) }, icon('plus', 18), 'Add'),
+      el('button', { class: 'button quiet', onclick: () => ruleSetupSheet(draw) }, 'Start from a pattern')),
+    el('button', { class: 'card card-button focus-card', onclick: () => go(focus ? '#/pray/focus' : '#/pray/habits') },
+      el('span', { class: 'card-heading plain', text: focus ? `Your focus: ${focus.habit.title}` : 'Interior habits and a focus' }),
+      el('span', { class: 'muted', text: focus
+        ? (focus.over ? 'Its weeks are over: keep it, or choose another.' : 'The habit you are working on. The examen asks about it each evening.')
+        : 'Habits of the heart to keep through the day, and one to work at for a few weeks.' })),
     listNode,
-    el('div', { class: 'button-row spread' },
-      el('button', { class: 'button quiet', onclick: () => ruleSetupSheet(draw) }, 'Help me choose'),
-      el('button', { class: 'button', onclick: () => addSheet(draw) }, 'Add')),
     marksOn() ? el('div', { class: 'prayer-actions' }, el('button', { class: 'text-button', onclick: () => go('#/pray/history') }, 'Looking back')) : null,
   );
   await draw();
 }
 
 /**
- * Start from a rule suited to one's state of life: choose the state, see
- * what it suggests, untick what does not fit, and add the rest. Nothing is
- * added until the reader says so, and nothing already on the list twice.
+ * Start from a pattern: one suited to a state of life, or one drawn from what a
+ * saint is known to have done or taught. The reader sees what it suggests,
+ * unticks what does not fit, and adds the rest. Nothing is added until they
+ * say so, and nothing already in their habits twice. The heavier entries of a
+ * saint's pattern (an hour of meditation, daily Mass) come unticked: copying a
+ * saint's whole day is the mistake Saint Francis de Sales warns against.
  */
 export function ruleSetupSheet(onDone) {
   const rules = startingRules();
-  openSheet('Help me choose', (close) => {
+  openSheet('Start from a pattern', (close) => {
     const body = el('div', {});
-    function chooseState() {
+    const choiceRow = (rule) => el('button', { class: 'picker-book', onclick: () => showRule(rule) },
+      el('span', { class: 'row-text' },
+        el('span', { class: 'row-title', text: rule.title }),
+        el('span', { class: 'row-sub', text: rule.sub })));
+    function chooseRule() {
       clear(body);
+      const byState = rules.filter((rule) => rule.kind !== 'saint');
+      const bySaint = rules.filter((rule) => rule.kind === 'saint');
       add(body,
-        el('p', { class: 'muted small', text: 'Saint Francis de Sales advises a devotion that fits your state of life: a parent’s is not a monk’s. Pick what is closest to yours; you can change anything afterwards.' }),
-        el('div', { class: 'choice-list' }, rules.map((rule) => el('button', { class: 'picker-book', onclick: () => showRule(rule) },
-          el('span', { class: 'row-text' },
-            el('span', { class: 'row-title', text: rule.title }),
-            el('span', { class: 'row-sub', text: rule.sub }))))));
+        el('p', { class: 'muted small', text: 'Saint Francis de Sales advises a devotion that fits your state of life: a parent’s is not a monk’s. Pick what is closest to yours, or learn from a saint; you choose what to keep, and can change anything afterwards.' }),
+        el('h3', { class: 'picker-group', text: 'By your state of life' }),
+        el('div', { class: 'choice-list' }, byState.map(choiceRow)),
+        bySaint.length ? [
+          el('h3', { class: 'picker-group', text: 'From the saints' }),
+          el('p', { class: 'muted small', text: 'What these saints are known to have done or taught, from their own writings and those who knew them. Take what fits your life, not the whole.' }),
+          el('div', { class: 'choice-list' }, bySaint.map(choiceRow)),
+        ] : null);
     }
     async function showRule(rule) {
       const existing = await currentPractices();
@@ -245,46 +291,62 @@ export function ruleSetupSheet(onDone) {
         const title = titles[index];
         const already = existing.some((item) => item.ref === entry.ref && (entry.ref !== 'custom' || item.title === title));
         const box = el('input', { type: 'checkbox', id: `rule-${index}` });
-        box.checked = !already;
+        box.checked = !already && entry.on !== false;
         box.disabled = already;
         boxes.push(box);
         const when = scheduleLabel({ weekdays: entry.weekdays || null, repeat: entry.repeat || null });
+        const time = (TIMES.find(([id]) => id === (entry.time || 'any')) || TIMES[3])[1];
         add(listNode, el('label', { class: 'picker-check rule-choice', for: `rule-${index}` }, box,
           el('span', { class: 'row-text' },
             el('span', { class: 'row-title', text: title }),
-            el('span', { class: 'row-sub', text: already ? 'Already in your rule' : `${(TIMES.find(([id]) => id === (entry.time || 'any')) || TIMES[3])[1]} · ${when}` }))));
+            el('span', { class: 'row-sub', text: already ? 'Already in your habits' : `${time} · ${when}` }),
+            entry.why ? el('span', { class: 'row-sub why', text: entry.why }) : null,
+            entry.source ? el('span', { class: 'row-sub source', text: entry.source }) : null)));
       });
       const addButton = el('button', { class: 'button' }, 'Add these');
       addButton.addEventListener('click', once(async () => {
         let added = 0;
         for (const [index, entry] of rule.entries.entries()) {
           if (!boxes[index].checked || boxes[index].disabled) continue;
-          await savePractice({ ref: entry.ref, title: titles[index], time: entry.time || 'any', weekdays: entry.weekdays || null, repeat: entry.repeat || null, during: null });
+          await savePractice({
+            ref: entry.ref, title: titles[index], time: entry.time || 'any', weekdays: entry.weekdays || null,
+            repeat: entry.repeat || null, during: null, from: rule.kind === 'saint' ? rule.saint : null,
+          });
           added += 1;
         }
         close();
-        toast(added ? `${added} added to your rule of life` : 'Nothing was added');
+        toast(added ? `${added} added to your habits` : 'Nothing was added');
         if (onDone) await onDone();
       }));
       add(body,
         el('h3', { class: 'list-heading', text: rule.title }),
+        rule.about ? el('p', { class: 'muted small', text: rule.about }) : null,
+        rule.quote && rule.quote.text ? el('blockquote', { class: 'quote' }, el('p', { text: `“${rule.quote.text}”` }), el('footer', { class: 'muted small', text: rule.quote.source })) : null,
+        rule.caution ? el('p', { class: 'help-urgent quiet small', text: rule.caution }) : null,
         el('p', { class: 'muted small', text: 'Untick anything that does not fit. Each can be changed or removed later, and you can add more once these are habits.' }),
         listNode,
         el('div', { class: 'button-row spread' },
-          el('button', { class: 'button quiet', onclick: chooseState }, 'Back'),
+          el('button', { class: 'button quiet', onclick: chooseRule }, 'Back'),
           addButton));
+      scrollSheetTop(body);
     }
-    chooseState();
+    chooseRule();
     return body;
   }, { tall: true });
+}
+
+/** Bring the top of a sheet's contents into view after they change. */
+function scrollSheetTop(node) {
+  const sheet = node.closest('.sheet-body') || node.parentElement;
+  if (sheet) sheet.scrollTop = 0;
 }
 
 /** Choose something to add to the list. */
 export async function addSheet(onDone) {
   const [plans, progress, own, existing] = await Promise.all([loadPlans(), allProgress(), ownPrayers(), currentPractices()]);
   const taken = new Set(existing.map((item) => item.ref));
-  openSheet('Add to my list', (close) => {
-    const filter = el('input', { class: 'field', type: 'search', placeholder: 'Find a prayer', 'aria-label': 'Find a prayer' });
+  openSheet('Add to my habits', (close) => {
+    const filter = el('input', { class: 'field', type: 'search', placeholder: 'Find a prayer or a habit', 'aria-label': 'Find a prayer or a habit' });
     const listNode = el('div', { class: 'picker-list' });
     const custom = el('input', { class: 'field', type: 'text', placeholder: 'Something else, such as “Mass” or “Spiritual reading”', 'aria-label': 'Something else' });
     const customButton = el('button', { class: 'button quiet', disabled: true }, 'Add');
@@ -297,12 +359,13 @@ export async function addSheet(onDone) {
     customButton.addEventListener('click', () => choose('custom', custom.value.trim()));
 
     const groups = [
-      ['Devotions', [
+      ['Devotions and guided prayers', [
         ...Object.entries(DEVOTION_NAMES).map(([id, name]) => [`devotion:${id}`, name]),
         ...guides().map((item) => [`guide:${item.id}`, item.title]),
         ['journal', 'Journal'],
         ['readings', 'Mass readings'],
       ]],
+      ['Interior habits', [...habits().map((item) => [`habit:${item.id}`, item.title]), ['focus', 'One thing to amend (your focus)']]],
       ['Reading plans', plans.filter((plan) => progress.has(plan.id)).map((plan) => [`plan:${plan.id}`, plan.name])],
       ['Your own prayers', own.map((prayer) => [`prayer:${prayer.id}`, prayer.title])],
       ['Prayers', listedPrayers().map((prayer) => [`prayer:${prayer.id}`, prayer.title])],
@@ -321,10 +384,10 @@ export async function addSheet(onDone) {
           const already = taken.has(reference);
           add(listNode, el('button', { class: 'picker-book', disabled: already, onclick: () => choose(reference, title) },
             el('span', { text: title }),
-            already ? el('span', { class: 'picker-alt', text: 'On your list' }) : null));
+            already ? el('span', { class: 'picker-alt', text: 'In your habits' }) : null));
         }
       }
-      if (!any) add(listNode, el('p', { class: 'muted', text: 'No prayer has that name. You can add your own in the library.' }));
+      if (!any) add(listNode, el('p', { class: 'muted', text: 'Nothing by that name. Name it below, or add a prayer of your own in the library.' }));
     }
     filter.addEventListener('input', draw);
     draw();
@@ -414,7 +477,7 @@ function entrySheet(practice, onDone) {
     return { weekdays, repeat, during };
   };
 
-  openSheet(isNew ? 'Add to my list' : 'Edit entry', (close) => {
+  openSheet(isNew ? 'Add to my habits' : 'Change', (close) => {
     const name = el('input', { class: 'field', type: 'text', 'aria-label': 'Name' });
     name.value = practice.title;
 
@@ -518,10 +581,10 @@ function entrySheet(practice, onDone) {
       const title = name.value.trim();
       if (!title) { name.focus(); return; }
       if (!drawSummary()) return;
-      const { id, ref, created, ended, order } = practice;
-      await savePractice({ id, ref, created, ended, order, title, time: draft.time, ...rule() });
+      const { id, ref, created, ended, order, from } = practice;
+      await savePractice({ id, ref, created, ended, order, from, title, time: draft.time, ...rule() });
       close();
-      toast(isNew ? `${title} added to your list` : 'Saved');
+      toast(isNew ? `${title} added to your habits` : 'Saved');
       if (onDone) await onDone();
     });
 
@@ -540,10 +603,10 @@ function entrySheet(practice, onDone) {
             onclick: async () => {
               await endPractice(practice.id, today());
               close();
-              toast(`${practice.title} removed from your list`);
+              toast(`${practice.title} removed from your habits`);
               if (onDone) await onDone();
             },
-          }, 'Remove from list'),
+          }, 'Remove'),
         el('button', { class: 'button', onclick: save }, isNew ? 'Add' : 'Save')),
       isNew || !marksOn() ? null : el('p', { class: 'muted small', text: 'Removing an entry keeps the days already recorded, so they still show when you look back.' }),
     ];

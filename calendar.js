@@ -613,10 +613,23 @@ export function movableFeasts(year, options = DEFAULT_OPTIONS) {
   const L = landmarks(year, { ...DEFAULT_OPTIONS, ...options });
   return {
     ashWednesday: toIso(L.ashWednesday),
+    lent1: toIso(L.lent1),
+    palmSunday: toIso(L.palmSunday),
+    holyThursday: toIso(L.easter - 3),
+    goodFriday: toIso(L.easter - 2),
+    holySaturday: toIso(L.easter - 1),
     easter: toIso(L.easter),
+    divineMercy: toIso(L.easter + 7),
+    ascension: toIso(L.ascension),
     pentecost: toIso(L.pentecost),
+    trinity: toIso(L.trinity),
+    corpusChristi: toIso(L.corpusChristi),
     sacredHeart: toIso(L.sacredHeart),
+    immaculateHeart: toIso(L.immaculateHeart),
+    christTheKing: toIso(L.christKing),
     advent: toIso(L.advent1),
+    epiphany: toIso(L.epiphany),
+    holyFamily: toIso(L.holyFamily),
   };
 }
 

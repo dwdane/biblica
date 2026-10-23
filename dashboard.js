@@ -11,7 +11,8 @@
  * `on` is whether it is shown before the reader has said otherwise.
  */
 export const TODAY_CARDS = [
-  { id: 'rule', label: 'For today', about: 'What you try to do today, from your rule of life, a tap away.', on: true },
+  { id: 'rule', label: 'For today', about: 'What you try to do today, from your own habits, a tap away; and your focus.', on: true },
+  { id: 'keep', label: 'Keeping the day', about: 'Penance and the fast before Communion, an indulgence of the day, a novena about to begin. Only on days with something to say.', on: true },
   { id: 'sunday', label: 'The Lord’s day', about: 'On Sundays and holy days of obligation, a word on keeping the day.', on: true },
   { id: 'readings', label: 'Mass readings', about: 'The readings of the day, and the way into the Mass companion.', on: true },
   { id: 'saints', label: 'Your saints', about: 'On the feast of one of your own saints.', on: true },

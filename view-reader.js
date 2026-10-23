@@ -319,6 +319,7 @@ export async function render(container, { bookId, chapter, verse, endVerse }) {
       el('div', { class: 'reader-tools' },
         el('button', { class: 'icon-button', 'aria-label': 'Previous chapter', disabled: !previous, onclick: () => previous && go(toPath(previous)) }, icon('back')),
         el('button', { class: 'icon-button', 'aria-label': 'Next chapter', disabled: !next, onclick: () => next && go(toPath(next)) }, icon('forward')),
+        el('button', { class: 'icon-button', 'aria-label': 'Search the Bible', onclick: () => go('#/search') }, icon('search')),
         el('button', { class: 'icon-button', 'aria-label': 'Text settings', onclick: () => textSheet(applyTextSettings) }, icon('text', 24)))),
     el('article', { class: 'chapter' },
       el('h2', { class: 'chapter-title', text: chapterTitle(bookId, chapterNumber) }),
@@ -674,7 +675,12 @@ export function bookPicker(currentBook, currentChapter) {
         }, el('span', { text: entry.name }), entry.drName ? el('span', { class: 'picker-alt', text: entry.drName }) : null));
       }
       if (!any) listNode.append(el('p', { class: 'muted', text: 'No book has that name.' }));
-      if (!wanted) listNode.append(earlyShelf());
+      if (!wanted) {
+        listNode.prepend(el('div', { class: 'picker-actions' },
+          el('button', { class: 'chip-button', onclick: () => { close(); go('#/search'); } }, icon('search', 16), 'Search the Bible'),
+          el('button', { class: 'chip-button', onclick: () => { close(); go('#/plans'); } }, 'Reading plans')));
+        listNode.append(earlyShelf());
+      }
     }
 
     // After the Bible, and kept apart from it: the earliest writings of the Church.

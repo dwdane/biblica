@@ -1,13 +1,19 @@
 // view-guided.js
-// Two guided prayers that proceed in a few unhurried steps: Lectio Divina
-// with a passage of Scripture, and the evening examen.
+// Guided prayers that proceed in a few unhurried steps: Lectio Divina with a
+// passage of Scripture, the evening examen, the other guided prayers
+// described in data-prayers.json, and praying a vocal prayer slowly, phrase
+// by phrase, as Saint Ignatius teaches.
 
 import { book, formatSpan, verseId, verseOrder, versesFor } from './bible.js';
-import { go, goBack, readingsOn, refresh, today } from './context.js';
+import { dayFor, go, goBack, readingsOn, refresh, today } from './context.js';
 import { db, saveSetting, settings } from './db.js';
+import { currentFocus } from './habits.js';
+import { fallsOn, intentionsFor } from './intentions.js';
 import { JOURNAL_FIELDS, hasContent, journalEntry, saveJournal } from './journal.js';
 import { guide as findGuide, markByReference } from './practices.js';
-import { findPrayer, prayerData, renderPrayer } from './prayers.js';
+import {
+  canPraySlowly, findPrayer, listedPrayers, ownPrayers, prayerData, renderPrayer, seasonalPrayerId, slowPhrases, marianAntiphonFor,
+} from './prayers.js';
 import { add, choice, clear, el, icon, inTurn, keepSaved, saveState, scrollToPosition, toast } from './ui.js';
 import { devotionStage, keepAwake, showStepBar } from './view-devotion.js';
 
@@ -236,9 +242,31 @@ export async function renderLectio(container, params) {
 // The evening examen
 // ---------------------------------------------------------------------------
 
+/**
+ * The reader's focus as a step of a guided prayer: what it is, and the
+ * question to ask about it. Null when no focus is chosen.
+ */
+function focusStep(date) {
+  const focus = currentFocus(date);
+  if (!focus) return null;
+  return {
+    title: `Your focus: ${focus.habit.title}`,
+    text: focus.habit.examine || 'How did it go today? Notice without excusing yourself and without beating yourself up; then ask for help tomorrow.',
+    focusHabit: focus.habit,
+  };
+}
+
+function focusNode(habit) {
+  return el('button', { class: 'focus-line in-guide', onclick: () => go(`#/pray/habit/${habit.id}`) },
+    el('span', { class: 'focus-label', text: 'About this habit' }),
+    el('span', { class: 'focus-title', text: habit.sub || habit.title }));
+}
+
 export async function renderExamen(container) {
   const guide = prayerData().examen;
-  const steps = guide.steps;
+  const focusOfDay = focusStep(today());
+  // The focus is looked at after the day as a whole, before asking forgiveness.
+  const steps = focusOfDay ? [...guide.steps.slice(0, 3), focusOfDay, ...guide.steps.slice(3)] : guide.steps;
   let index = -1;
   const stage = devotionStage();
   const bar = el('div', {});
@@ -283,7 +311,8 @@ export async function renderExamen(container) {
       stepDots(index, steps.length),
       el('p', { class: 'rubric', text: `${index + 1} of ${steps.length}` }),
       el('h2', { class: 'chapter-title', text: step.title }),
-      el('p', { class: 'devotion-guide', text: step.text }));
+      el('p', { class: 'devotion-guide', text: step.text }),
+      step.focusHabit ? focusNode(step.focusHabit) : null);
     if (step.prayer) {
       const prayer = await findPrayer(step.prayer);
       if (prayer) add(stage, el('details', { class: 'prayer-include', open: true }, el('summary', { text: prayer.title }), await renderPrayer(prayer)));
@@ -346,7 +375,15 @@ export async function renderExamen(container) {
  * add a prayer from the library, the Gospel of the day, the reader's
  * intentions, a quiet timer, or a place to write in the journal.
  */
+/** A prayer named by a guide, as the day has it: the Regina Caeli for the Angelus in Easter, the antiphon of Our Lady for the season. */
+function prayerForDay(id, day) {
+  if (id === 'marian-antiphon') return marianAntiphonFor(day);
+  return seasonalPrayerId(id, day);
+}
+
 export async function renderGuide(container, { id }) {
+  // Praying slowly has a screen of its own, which first asks which prayer.
+  if (id === 'slowly') return renderSlowly(container, {});
   const guide = findGuide(id);
   if (!guide) {
     add(container,
@@ -355,8 +392,22 @@ export async function renderGuide(container, { id }) {
       el('p', { class: 'empty', text: 'That guided prayer is not in the app.' }));
     return undefined;
   }
-  const steps = guide.steps;
+  const day = dayFor(today());
+  const focusOfDay = focusStep(today());
+  // A step about the focus is left out when no focus is chosen.
+  const steps = guide.steps
+    .filter((step) => !step.focus || focusOfDay)
+    .map((step) => (step.focus ? { ...step, focusHabit: focusOfDay.focusHabit, text: `${step.text} ${focusOfDay.text}`.trim() } : step));
   const needsPassage = steps.some((step) => step.passage);
+  // Passages a guide names for itself (a psalm, the reading of Night Prayer), in the Bible's words.
+  const ownPassages = new Map();
+  for (const [stepIndex, step] of steps.entries()) {
+    if (step.scripture) {
+      const [bookId, c1, v1, c2, v2] = step.scripture;
+      const span = [c1, v1, c2, v2];
+      ownPassages.set(stepIndex, { bookId, span, verses: await versesFor(bookId, [span], { translation: 'drb' }).catch(() => []) });
+    }
+  }
   const passage = needsPassage ? gospelOfTheDay() : null;
   let verses = [];
   if (passage) {
@@ -364,8 +415,9 @@ export async function renderGuide(container, { id }) {
     verses = await versesFor(passage.book, passage.spans).catch(() => []);
   }
   const label = passage ? passage.spans.map((span) => formatSpan(passage.book, span)).join('; ') : '';
+  // Those for this day first, with the word that says why.
   const intentions = steps.some((step) => step.intentions)
-    ? (await db.all('intentions')).filter((item) => !item.answered)
+    ? await intentionsFor(today()).then(({ forDay, ongoing }) => [...forDay, ...ongoing])
     : [];
   // The day the prayer was begun is the day it belongs to.
   const date = today();
@@ -408,7 +460,17 @@ export async function renderGuide(container, { id }) {
       stepDots(index, steps.length),
       el('p', { class: 'rubric', text: `${index + 1} of ${steps.length}` }),
       el('h2', { class: 'chapter-title', text: step.title }),
-      el('p', { class: 'devotion-guide', text: step.text }));
+      el('p', { class: 'devotion-guide', text: step.text }),
+      step.focusHabit ? focusNode(step.focusHabit) : null);
+    if (ownPassages.has(index)) {
+      const { bookId, span, verses } = ownPassages.get(index);
+      add(stage,
+        el('p', { class: 'chapter-sub', text: formatSpan(bookId, span) }),
+        verses.length
+          ? el('div', { class: 'chapter-text lectio-passage', style: { fontSize: `${settings().textSize}px` } },
+            verses.map((verse) => el('span', { class: 'verse static' }, el('sup', { class: 'verse-number', text: verse.verse }), el('span', { class: 'verse-body', text: verse.text }))))
+          : el('p', { class: 'muted', text: 'The passage is not saved on this device yet; it will appear once you are back online.' }));
+    }
     if (step.timer) {
       timer = quietTimer(settings().lectioMinutes, next);
       add(stage, timer.node);
@@ -424,17 +486,20 @@ export async function renderGuide(container, { id }) {
     }
     if (step.intentions) {
       add(stage, intentions.length
-        ? el('ul', { class: 'bring-list' }, intentions.map((item) => el('li', { text: item.text })))
+        ? el('ul', { class: 'bring-list' }, intentions.map((item) => el('li', {}, el('span', { text: item.text }), item.whenLabel && fallsOn(item.when, today()) ? el('span', { class: 'rule-occasion', text: item.whenLabel }) : null)))
         : el('p', { class: 'muted small', text: 'The intentions you keep in the app will be listed here.' }));
     }
     if (step.prayer) {
-      const prayer = await findPrayer(step.prayer);
+      const prayer = await findPrayer(prayerForDay(step.prayer, day));
       if (prayer) add(stage, el('details', { class: 'prayer-include', open: true }, el('summary', { text: prayer.title }), await renderPrayer(prayer)));
     }
     if (step.journal) {
       const [, , placeholder] = JOURNAL_FIELDS.find(([name]) => name === step.journal);
       field = journalField(entry, step.journal, step.journalLabel || 'For today', placeholder);
       add(stage, field.node);
+    }
+    if (step.links && step.links.length) {
+      add(stage, el('div', { class: 'help-links' }, step.links.map((link) => el('button', { class: 'chip-button', onclick: () => go(link.path) }, link.label))));
     }
     scrollToPosition(0);
   });
@@ -469,5 +534,115 @@ export async function renderGuide(container, { id }) {
     release();
     document.body.classList.remove('has-step-bar');
     leaveStep();
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Praying a prayer slowly
+// ---------------------------------------------------------------------------
+
+/**
+ * Saint Ignatius's second method of prayer: a vocal prayer taken word by word
+ * or phrase by phrase, staying with each as long as it gives something, then
+ * going on. Without a prayer chosen, the screen offers the prayers that suit
+ * it; with one, it goes through that prayer one phrase to a step, with the
+ * guide's opening and closing steps either side.
+ */
+export async function renderSlowly(container, { id }) {
+  const guide = findGuide('slowly') || { title: 'Praying a prayer slowly', sub: '', about: '', steps: [] };
+  const back = el('header', { class: 'reader-bar' },
+    el('button', { class: 'back-button', onclick: () => goBack('#/pray') }, icon('back'), el('span', { text: 'Back' })));
+  const prayer = id ? await findPrayer(id) : null;
+
+  if (!prayer || !canPraySlowly(prayer)) {
+    const own = (await ownPrayers()).filter(canPraySlowly);
+    const suggested = ['our-father', 'hail-mary', 'glory-be', 'anima-christi', 'suscipe', 'memorare', 'hail-holy-queen', 'act-of-contrition', 'apostles-creed', 'morning-offering'];
+    const library = listedPrayers().filter(canPraySlowly);
+    const first = suggested.map((name) => library.find((item) => item.id === name)).filter(Boolean);
+    const rest = library.filter((item) => !suggested.includes(item.id));
+    const option = (item) => el('button', { class: 'list-row', onclick: () => go(`#/pray/slowly/${item.id}`) },
+      el('span', { class: 'row-text' }, el('span', { class: 'row-title', text: item.title })), icon('forward', 18));
+    add(container,
+      back,
+      el('article', { class: 'chapter help-page' },
+        el('p', { class: 'rubric', text: guide.sub || 'Saint Ignatius’s second method' }),
+        el('h2', { class: 'chapter-title', text: guide.title }),
+        el('p', { class: 'devotion-guide', text: guide.about }),
+        id ? el('p', { class: 'muted', text: 'That prayer is not one that can be taken phrase by phrase here. Choose another.' }) : null),
+      el('h3', { class: 'list-heading', text: 'Choose a prayer' }),
+      el('div', { class: 'list-card' }, first.map(option)),
+      own.length ? [el('h3', { class: 'list-heading', text: 'Your own prayers' }), el('div', { class: 'list-card' }, own.map(option))] : null,
+      el('details', { class: 'finished-list' }, el('summary', { text: 'Other prayers' }), el('div', { class: 'list-card' }, rest.map(option))));
+    return undefined;
+  }
+
+  const phrases = slowPhrases(prayer);
+  const [opening, ...closingSteps] = guide.steps.length ? guide.steps : [{ title: 'Begin', text: '' }];
+  const hint = prayerData().phraseHint || '';
+  // -1 the opening; 0 to n-1 the phrases; n onward the closing steps.
+  let index = -1;
+  const total = phrases.length + closingSteps.length;
+  const stage = devotionStage();
+  const bar = el('div', {});
+  const release = keepAwake();
+
+  const draw = () => {
+    clear(stage);
+    if (index === -1) {
+      add(stage,
+        el('p', { class: 'rubric', text: guide.title }),
+        el('h2', { class: 'chapter-title', text: prayer.title }),
+        el('p', { class: 'devotion-guide', text: opening.text }));
+      showStepBar(bar, { canBack: false, onBack: () => {}, onNext: () => move(1), nextLabel: 'Begin' });
+      scrollToPosition(0);
+      return;
+    }
+    const last = index === total - 1;
+    const next = showStepBar(bar, {
+      canBack: true,
+      onBack: () => move(-1),
+      onNext: () => (last ? finish() : move(1)),
+      nextLabel: last ? 'Amen' : (index + 1 < phrases.length ? 'Go on' : closingSteps[index + 1 - phrases.length].title),
+    });
+    next.classList.remove('ready');
+    if (index < phrases.length) {
+      add(stage,
+        stepDots(Math.min(index, 11), Math.min(phrases.length, 12)),
+        el('p', { class: 'rubric', text: `${prayer.title} · ${index + 1} of ${phrases.length}` }),
+        el('p', { class: 'slow-phrase', text: phrases[index] }),
+        hint && index === 0 ? el('p', { class: 'muted small', text: hint }) : null,
+        index > 0 ? el('p', { class: 'slow-before muted small', text: phrases.slice(Math.max(0, index - 2), index).join(' ') }) : null);
+    } else {
+      const step = closingSteps[index - phrases.length];
+      add(stage,
+        el('p', { class: 'rubric', text: prayer.title }),
+        el('h2', { class: 'chapter-title', text: step.title }),
+        el('p', { class: 'devotion-guide', text: step.text }));
+    }
+    scrollToPosition(0);
+  };
+
+  function move(delta) {
+    index = Math.max(-1, Math.min(total - 1, index + delta));
+    draw();
+  }
+
+  async function finish() {
+    await markByReference('guide:slowly', today());
+    clear(bar);
+    clear(stage).append(el('section', { class: 'card finished-card' },
+      el('h2', { class: 'card-heading large', text: 'Thanks be to God' }),
+      el('p', { class: 'muted', text: 'One prayer said slowly is worth many said in haste.' }),
+      el('div', { class: 'button-row' },
+        el('button', { class: 'button quiet', onclick: () => go('#/pray/slowly') }, 'Another prayer'),
+        el('button', { class: 'button', onclick: () => go('#/today') }, 'Back to today'))));
+  }
+
+  document.body.classList.add('has-step-bar');
+  add(container, back, stage, bar);
+  draw();
+  return () => {
+    release();
+    document.body.classList.remove('has-step-bar');
   };
 }

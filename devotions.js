@@ -70,3 +70,54 @@ export function stations() {
 }
 
 export const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV'];
+
+// ---------------------------------------------------------------------------
+// Chaplets
+// ---------------------------------------------------------------------------
+
+/** The chaplets: [{ id, name, sub, about, steps, end, note }]. */
+export function chaplets() {
+  const data = prayerData();
+  return data && Array.isArray(data.chaplets) ? data.chaplets : [];
+}
+
+export function chaplet(id) {
+  return chaplets().find((item) => item.id === id) || null;
+}
+
+/**
+ * A chaplet as a list of steps, one per bead or prayer, in the same shape as
+ * the Rosary's: { prayer, section, decade, bead, of, hint }.
+ *
+ * The chaplet's own description is a list of parts: a prayer said once
+ * ({ section, prayer }), a prayer said on several beads ({ section, prayer,
+ * count }), or a group said again and again ({ repeat: 5, section: 'Decade',
+ * steps: [...] }), whose `decade` counts the repetitions.
+ */
+export function chapletSteps(item) {
+  const steps = [];
+  const walk = (parts, decade, section) => {
+    for (const part of parts) {
+      if (part.repeat) {
+        for (let round = 1; round <= part.repeat; round += 1) {
+          walk(part.steps, round, `${part.section || 'Decade'} ${round} of ${part.repeat}`);
+        }
+        continue;
+      }
+      const where = part.section || section || '';
+      if (part.count && part.count > 1) {
+        for (let bead = 1; bead <= part.count; bead += 1) steps.push({ prayer: part.prayer, section: where, decade, bead, of: part.count, hint: part.hint || null });
+      } else {
+        steps.push({ prayer: part.prayer, section: where, decade, hint: part.hint || null });
+      }
+    }
+  };
+  walk(item.steps, 0, '');
+  return steps;
+}
+
+/** How many groups a chaplet's beads are counted in (five decades), for the markers at the top. */
+export function chapletRounds(item) {
+  const round = item.steps.find((part) => part.repeat);
+  return round ? round.repeat : 0;
+}

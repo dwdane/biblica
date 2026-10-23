@@ -2,9 +2,9 @@
 // Search the whole Bible for a word or phrase.
 
 import { book, books, currentTranslation, TRANSLATIONS } from './bible.js';
-import { go } from './context.js';
+import { go, goBack } from './context.js';
 import { prepare, search, splitMatches } from './search.js';
-import { clear, el } from './ui.js';
+import { clear, el, icon } from './ui.js';
 
 const PAGE_SIZE = 60;
 
@@ -91,7 +91,9 @@ export async function render(container, { query }) {
   more.addEventListener('click', drawMore);
 
   container.append(
-    el('header', { class: 'app-header' }, el('h1', { class: 'app-title', text: 'Search' })),
+    el('header', { class: 'reader-bar' },
+      el('button', { class: 'back-button', onclick: () => goBack('#/read') }, icon('back'), el('span', { text: 'Bible' }))),
+    el('h1', { class: 'page-title', text: 'Search the Bible' }),
     el('div', { class: 'search-controls' },
       input,
       el('div', { class: 'search-options' },

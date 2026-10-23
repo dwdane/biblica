@@ -6,8 +6,9 @@ import { dayFor, go, goBack, refresh, today } from './context.js';
 import { saveSetting, settings } from './db.js';
 import { dropPrayerFromNovenas } from './novenas.js';
 import { endByReference, isOnList, markByReference, openEntryFor } from './practices.js';
+import { loadHelps } from './helps.js';
 import {
-  categories, deleteOwnPrayer, findPrayer, hasLatin, isFavourite, listedPrayers, ownPrayers, plainText,
+  beforePrayerFor, canPraySlowly, categories, deleteOwnPrayer, findPrayer, hasLatin, isFavourite, listedPrayers, ownPrayers, plainText,
   renderPrayer, saveOwnPrayer, toggleFavourite,
 } from './prayers.js';
 import { add, choice, clear, confirmSheet, el, icon, once, openSheet, toast } from './ui.js';
@@ -108,11 +109,25 @@ export async function renderPrayerPage(container, { id }) {
         }),
       }, 'Amen'));
     } else if (onList) {
-      add(actions, el('p', { class: 'muted small centre', text: 'On your daily list.' }));
+      add(actions, el('p', { class: 'muted small centre', text: 'In your habits.' }));
     } else {
-      add(actions, el('button', { class: 'button quiet wide', onclick: () => addReference(reference, drawActions) }, 'Add to my daily list'));
+      add(actions, el('button', { class: 'button quiet wide', onclick: () => addReference(reference, drawActions) }, 'Add to my habits'));
     }
   }
+
+  // The Church grants an indulgence for some prayers; say so, and where the conditions are.
+  const indulgenceNode = el('div', {});
+  loadHelps().then((helps) => {
+    const grants = helps.indulgences.grants.filter((grant) => (grant.prayers || []).includes(prayer.id));
+    if (!grants.length) return;
+    const kinds = new Set(grants.map((grant) => grant.kind));
+    const kind = kinds.has('plenary') || kinds.has('both') ? 'An indulgence' : 'A partial indulgence';
+    add(indulgenceNode, el('button', { class: 'text-button small indulgence-note', onclick: () => go(`#/tools/indulgences/${grants[0].id}`) },
+      `${kind} is granted for this prayer. About indulgences`));
+  }).catch(() => {});
+
+  // A line that asks for a moment's attention before the words begin.
+  const before = settings().beforePrayer !== false && !prayer.own ? beforePrayerFor(today()) : null;
 
   const language = hasLatin(prayer)
     ? choice([['en', 'English'], ['la', 'Latin'], ['both', 'Both']], settings().prayerLanguage, async (mode) => {
@@ -131,8 +146,12 @@ export async function renderPrayerPage(container, { id }) {
       el('h2', { class: 'chapter-title', text: prayer.title }),
       prayer.latin && prayer.latin !== prayer.title ? el('p', { class: 'chapter-sub latin', text: prayer.latin }) : null,
       prayer.note ? el('p', { class: 'chapter-sub', text: prayer.note }) : null,
+      before ? el('p', { class: 'before-prayer' }, el('span', { text: before.text }), before.by ? el('span', { class: 'muted small', text: ` ${before.by}` }) : null) : null,
       language,
-      textNode),
+      textNode,
+      canPraySlowly(prayer) ? el('div', { class: 'help-links' },
+        el('button', { class: 'chip-button', onclick: () => go(`#/pray/slowly/${prayer.id}`) }, 'Pray it slowly, phrase by phrase')) : null,
+      indulgenceNode),
     actions,
   );
   await drawText();

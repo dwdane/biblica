@@ -39,7 +39,7 @@ const TRY_INCOMPLETE_TIMES = 3;
 const RESUME_KEY = 'biblica:resume';
 const RESTARTED_KEY = 'biblica:restarted';
 // The screens the tab bar leads to. Arriving at one, there is no "Back" to lose by restarting.
-const TAB_ROOTS = ['#/today', '#/read', '#/pray', '#/search', '#/notes'];
+const TAB_ROOTS = ['#/today', '#/read', '#/pray', '#/tools', '#/notes'];
 
 const state = {
   registration: null,

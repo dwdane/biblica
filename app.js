@@ -18,6 +18,7 @@ import * as dayView from './view-day.js';
 import * as earlyView from './view-early.js';
 import * as devotionView from './view-devotion.js';
 import * as guidedView from './view-guided.js';
+import * as habitView from './view-habit.js';
 import * as helpView from './view-help.js';
 import * as intentionsView from './view-intentions.js';
 import * as journalView from './view-journal.js';
@@ -36,12 +37,13 @@ import * as searchView from './view-search.js';
 import * as settingsView from './view-settings.js';
 import * as studyView from './view-study.js';
 import * as todayView from './view-today.js';
+import * as toolsView from './view-tools.js';
 
 const TABS = [
   { id: 'today', label: 'Today', icon: 'today', path: '#/today' },
   { id: 'bible', label: 'Bible', icon: 'bible', path: '#/read' },
   { id: 'pray', label: 'Pray', icon: 'cross', path: '#/pray' },
-  { id: 'search', label: 'Search', icon: 'search', path: '#/search' },
+  { id: 'tools', label: 'Tools', icon: 'tools', path: '#/tools' },
   { id: 'notes', label: 'Notes', icon: 'notes', path: '#/notes' },
 ];
 
@@ -102,22 +104,25 @@ function resolve(hash) {
       return { tab: 'today', view: passageView.renderReading, params: { date: a, index: b, mass: c } };
     case 'plans':
       return a
-        ? { tab: 'pray', view: plansView.renderDetail, params: { planId: a } }
-        : { tab: 'pray', view: plansView.renderList, params: {} };
+        ? { tab: 'bible', view: plansView.renderDetail, params: { planId: a } }
+        : { tab: 'bible', view: plansView.renderList, params: {} };
     case 'plan':
-      return { tab: 'pray', view: passageView.renderPlanDay, params: { planId: a, dayNumber: b } };
+      return { tab: 'bible', view: passageView.renderPlanDay, params: { planId: a, dayNumber: b } };
     case 'prayer':
       return { tab: 'pray', view: libraryView.renderPrayerPage, params: { id: a } };
     case 'pray':
       return resolvePray(a, b, c, parts[4]);
     case 'search':
-      return { tab: 'search', view: searchView.render, params: { query: a } };
+      // Search lives inside the Bible: it is reached from the reader and the book list.
+      return { tab: 'bible', view: searchView.render, params: { query: a } };
+    case 'tools':
+      return resolveTools(a, b);
     case 'notes':
       return { tab: 'notes', view: notesView.render, params: {} };
     case 'settings':
       return { tab: 'today', view: settingsView.render, params: {} };
     case 'mass':
-      return { tab: 'pray', view: massView.render, params: { form: a } };
+      return { tab: 'tools', view: massView.render, params: { form: a } };
     case 'about':
       return a === 'news'
         ? { tab: 'today', view: aboutView.renderNews, params: {} }
@@ -141,6 +146,16 @@ function resolvePray(section, a, b, c) {
       return { tab, view: devotionView.renderRosary, params: { set: a } };
     case 'stations':
       return { tab, view: devotionView.renderStations, params: {} };
+    case 'chaplet':
+      return { tab, view: devotionView.renderChaplet, params: { id: a } };
+    case 'slowly':
+      return { tab, view: guidedView.renderSlowly, params: { id: a } };
+    case 'habits':
+      return { tab, view: habitView.renderHabits, params: {} };
+    case 'habit':
+      return { tab, view: habitView.renderHabit, params: { id: a } };
+    case 'focus':
+      return { tab, view: habitView.renderFocus, params: {} };
     case 'lectio':
       return { tab, view: guidedView.renderLectio, params: { bookId: a, chapter: b, verses: c } };
     case 'examen':
@@ -148,15 +163,15 @@ function resolvePray(section, a, b, c) {
     case 'novenas':
       return { tab, view: novenasView.renderNovenas, params: {} };
     case 'novena':
-      return { tab, view: novenasView.renderNovena, params: { id: a } };
+      return { tab, view: novenasView.renderNovena, params: { id: a, day: b } };
     case 'intentions':
       return { tab, view: intentionsView.renderIntentions, params: {} };
     case 'confession':
-      return { tab, view: confessionView.renderConfession, params: {} };
+      return { tab: 'tools', view: confessionView.renderConfession, params: {} };
     case 'guide':
       return { tab, view: guidedView.renderGuide, params: { id: a } };
     case 'office':
-      return { tab, view: officeView.render, params: {} };
+      return { tab: 'tools', view: officeView.render, params: {} };
     case 'help':
       return a
         ? { tab, view: helpView.renderHelpTopic, params: { id: a } }
@@ -164,11 +179,42 @@ function resolvePray(section, a, b, c) {
     case 'aspirations':
       return { tab, view: helpView.renderAspirations, params: {} };
     case 'saints':
+      return { tab: 'tools', view: saintsView.renderSaints, params: {} };
+    case 'saint':
+      return { tab: 'tools', view: saintsView.renderSaint, params: { id: a } };
+    default:
+      return { tab, view: prayView.render, params: {} };
+  }
+}
+
+/**
+ * The screens under the Tools tab: the things that help a life of prayer
+ * without being prayer themselves. Some older addresses under #/pray lead to
+ * the same screens, so that links kept from earlier releases still work.
+ */
+function resolveTools(section, a) {
+  const tab = 'tools';
+  switch (section) {
+    case 'saints':
       return { tab, view: saintsView.renderSaints, params: {} };
     case 'saint':
       return { tab, view: saintsView.renderSaint, params: { id: a } };
+    case 'directory':
+      return a
+        ? { tab, view: saintsView.renderDirectoryEntry, params: { id: a } }
+        : { tab, view: saintsView.renderDirectory, params: {} };
+    case 'confession':
+      return { tab, view: confessionView.renderConfession, params: {} };
+    case 'office':
+      return { tab, view: officeView.render, params: {} };
+    case 'guide':
+      return { tab, view: toolsView.renderGuide, params: { id: a } };
+    case 'indulgences':
+      return { tab, view: toolsView.renderIndulgences, params: { id: a } };
+    case 'fasting':
+      return { tab, view: toolsView.renderFasting, params: {} };
     default:
-      return { tab, view: prayView.render, params: {} };
+      return { tab, view: toolsView.render, params: {} };
   }
 }
 

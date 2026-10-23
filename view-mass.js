@@ -234,7 +234,7 @@ export async function render(container, { form }) {
 
   add(container,
     el('header', { class: 'reader-bar' },
-      el('button', { class: 'back-button', onclick: () => goBack('#/pray') }, icon('back'), el('span', { text: 'Back' }))),
+      el('button', { class: 'back-button', onclick: () => goBack('#/tools') }, icon('back'), el('span', { text: 'Back' }))),
     el('h1', { class: 'page-title', text: 'The Mass' }),
     choice([['ordinary', 'Ordinary form'], ['traditional', 'Traditional Latin']], chosen, (value) => go(`#/mass/${value}`), { label: 'Form of the Mass', className: 'segmented' }),
     el('p', { class: 'muted page-intro mass-intro', text: mass.intro }),

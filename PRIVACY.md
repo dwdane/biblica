@@ -1,6 +1,6 @@
 # Privacy
 
-Last changed with release 0.5.0, 10 October 2026.
+Last changed with release 0.6.0, 22 October 2026.
 
 ## The short version
 
@@ -16,8 +16,9 @@ Biblica keeps the following in your browser's storage for this app, on this devi
 
 - your notes, highlights and the links you make between verses;
 - your reflections and your journal;
-- your rule of life and, only if you turn it on, a note of what you prayed each day;
-- your novenas, intentions, saints and your own prayers;
+- your habits, the one you have chosen as your focus and, only if you turn it on, a note of what you prayed each day;
+- your novenas, intentions (with the days they belong to), saints and your own prayers;
+- which reminders of fasting and penance you asked for, and which suggested novenas you set aside;
 - your place in the Bible, in reading plans and in the day's readings;
 - your settings, such as text size, translation, calendar and how Today is arranged, and a few facts about this device's copy: which version it last ran, when it last looked for an update and when you last made a backup;
 - what you mark in the examination of conscience, the date of your last confession and what you keep from your confessor's advice, which are kept apart from the rest and left out of backups unless you ask for them;
@@ -52,10 +53,14 @@ A few screens point to another website: the bishops' outline of the Mass, the si
 
 A backup is a file made on your device when you ask for one. It holds what you have written and your settings. Biblica hands it to your phone's share sheet or its downloads folder, and where it goes from there is your choice. If you put it in a cloud service, that service's terms apply to it. The file is plain text, not encrypted, so keep it somewhere you trust. Confession notes are left out unless you turn that on.
 
+## Calendar files
+
+Biblica cannot set alarms or send notifications itself. When you ask it to put a novena's days, or the days of fasting and penance, in your phone's calendar, it makes a small calendar file on your device and hands it to your phone's share sheet or its downloads folder, as it does a backup. The file holds what you asked for: the novena's name and its days, or the days of penance and their notes, with the times of the alerts. A novena's intention is left out unless you tick the box that puts it in. Once your calendar has the file, the calendar's own terms and syncing apply: many phones copy their calendar to an account elsewhere.
+
 ## What Biblica does not do
 
 - It does not ask for your location, contacts, camera, microphone or photos.
-- It sends no notifications.
+- It sends no notifications. Reminders reach you only through a calendar file you choose to add to your own calendar.
 - It shows no advertising and contains nothing from an advertising or analytics company.
 - It loads no fonts, scripts or images from other sites.
 - It does not send anything you write to an AI service or to anyone else.

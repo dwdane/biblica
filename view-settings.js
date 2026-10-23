@@ -59,9 +59,10 @@ export async function render(container, _params, { applyTheme }) {
     el('section', { class: 'card' },
       el('h3', { class: 'card-heading', text: 'Today' }),
       el('div', { class: 'setting-row stacked' },
-        el('span', { class: 'setting-text' }, el('span', { text: 'What Today shows' }), el('span', { class: 'muted small', text: 'Show, hide and order the cards below the day: your rule of life, the readings, a short prayer, intentions, the journal and the rest.' })),
+        el('span', { class: 'setting-text' }, el('span', { text: 'What Today shows' }), el('span', { class: 'muted small', text: 'Show, hide and order the cards below the day: your habits, the readings, a short prayer, intentions, the journal and the rest.' })),
         el('button', { class: 'button quiet', onclick: () => arrangeSheet(() => {}) }, 'Arrange Today')),
-      toggle('dailyMarks', 'Mark what I have prayed', 'Off unless you want it. When on, a quiet word appears beside what you have prayed in your rule of life today, and you can look back over the month. Nothing is counted either way.')),
+      toggle('dailyMarks', 'Mark what I have prayed', 'Off unless you want it. When on, a quiet word appears beside what you have prayed of your habits today, and you can look back over the month. Nothing is counted either way.'),
+      pageLink('#/tools/fasting', 'Days of penance on Today', 'Fridays, the fast before Communion, and customs such as Wednesdays and the Ember days, if you want them')),
 
     el('section', { class: 'card' },
       el('h3', { class: 'card-heading', text: 'Prayers' }),
@@ -71,6 +72,7 @@ export async function render(container, _params, { applyTheme }) {
       toggle('fatimaPrayer', 'Fatima prayer', 'Added after each decade of the Rosary.'),
       toggle('rosaryScripture', 'Scripture with each mystery', 'A passage from the Gospels shown with each mystery of the Rosary.'),
       toggle('examenJournal', 'Journal in the examen', 'Offers a place to write during the evening examen.'),
+      toggle('beforePrayer', 'A moment of recollection', 'A line from the saints above each prayer, asking a moment’s attention before the words begin.'),
       el('div', { class: 'setting-row stacked' }, el('span', { class: 'setting-text' }, el('span', { text: 'Lectio Divina' }), el('span', { class: 'muted small', text: 'Time given to each step.' })),
         segmented('lectioMinutes', [[0, 'Untimed'], [3, '3 min'], [5, '5 min'], [10, '10 min']]))),
 

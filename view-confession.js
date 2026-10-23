@@ -189,7 +189,7 @@ export async function renderConfession(container) {
 
   add(container,
     el('header', { class: 'reader-bar' },
-      el('button', { class: 'back-button', onclick: () => goBack('#/pray') }, icon('back'), el('span', { text: 'Back' }))),
+      el('button', { class: 'back-button', onclick: () => goBack('#/tools') }, icon('back'), el('span', { text: 'Back' }))),
     el('h1', { class: 'page-title', text: 'Confession' }),
     lastNode,
     tabs,

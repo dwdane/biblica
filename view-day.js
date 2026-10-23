@@ -6,6 +6,7 @@ import { accountsFor, eventsOn, kindName, obligationFor, penanceFor, seasonAccou
 import { calendarEntries, dayFor, go, goBack, longDate, readingsOn, today, typeLabel } from './context.js';
 import { hasContent, journalEntry } from './journal.js';
 import { allPatrons, isPerson, patronsOn, roleLabel, shortName } from './patrons.js';
+import { settings } from './db.js';
 import { add, el, icon } from './ui.js';
 import { patronSheet } from './view-saints.js';
 
@@ -15,7 +16,7 @@ export async function render(container, { date }) {
   const iso = /^\d{4}-\d{2}-\d{2}$/.test(date || '') ? date : today();
   const day = dayFor(iso);
   const obligation = obligationFor(day);
-  const penance = penanceFor(day);
+  const penance = penanceFor(day, settings().region);
   const accounts = accountsFor(day);
   const events = eventsOn(iso);
   const [mine, patrons, entry] = await Promise.all([patronsOn(day, dayFor), allPatrons(), journalEntry(iso)]);
@@ -31,7 +32,7 @@ export async function render(container, { date }) {
     item.patron ? el('p', { class: 'muted', text: item.patron }) : null,
     // Only a person can be someone's patron; feasts of the Lord, of events and of churches are left out.
     isPerson(item.name) && !known.has(item.key)
-      ? el('button', { class: 'text-button', onclick: () => patronSheet({ name: shortName(item.name), key: item.key, feast: usualDate(item.key) || iso.slice(5) }, () => go('#/pray/saints')) }, 'Add to my saints')
+      ? el('button', { class: 'text-button', onclick: () => patronSheet({ name: shortName(item.name), key: item.key, feast: usualDate(item.key) || iso.slice(5) }, () => go('#/tools/saints')) }, 'Add to my saints')
       : null);
 
   add(container,
@@ -46,7 +47,7 @@ export async function render(container, { date }) {
         el('span', { class: 'colour-chip' }, el('span', { class: 'week-dot', dataset: { lit: day.color } }), ` ${COLOUR_NAMES[day.color] || day.color}`)),
 
       mine.length ? el('div', { class: 'intention-block' },
-        mine.map((item) => el('button', { class: 'text-button', onclick: () => go(`#/pray/saint/${item.id}`) },
+        mine.map((item) => el('button', { class: 'text-button', onclick: () => go(`#/tools/saint/${item.id}`) },
           [`The feast of ${item.name}`, roleLabel(item.role)].filter(Boolean).join(' · ')))) : null,
 
       el('div', { class: `obligation${obligation.obliged ? ' obliged' : ''}` },

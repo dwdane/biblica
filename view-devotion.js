@@ -1,11 +1,11 @@
 // view-devotion.js
-// Guided devotions prayed step by step: the Rosary, bead by bead, and the
-// Stations of the Cross.
+// Guided devotions prayed step by step: the Rosary and the chaplets, bead by
+// bead, and the Stations of the Cross.
 
 import { formatSpan, versesFor } from './bible.js';
 import { dayFor, go, goBack, today } from './context.js';
 import { saveSetting, settings } from './db.js';
-import { ROMAN, rosarySet, rosarySetFor, rosarySets, rosarySteps, stations } from './devotions.js';
+import { ROMAN, chaplet, chapletRounds, chapletSteps, rosarySet, rosarySetFor, rosarySets, rosarySteps, stations } from './devotions.js';
 import { markByReference } from './practices.js';
 import { findPrayer, renderPrayer } from './prayers.js';
 import { add, choice, clear, el, icon, inTurn, openSheet, scrollToPosition, sheetIsOpen } from './ui.js';
@@ -124,7 +124,7 @@ export async function renderRosary(container, { set }) {
       const prayer = await findPrayer(step.prayer);
       if (step.mysteryTitle) add(stage, el('p', { class: 'devotion-context', text: step.mysteryTitle }));
       add(stage, el('h2', { class: 'devotion-prayer-title', text: settings().prayerLanguage === 'la' && prayer.latin ? prayer.latin : prayer.title }));
-      if (step.of) add(stage, beads(step.bead, step.of, step.hint));
+      if (step.of) add(stage, beads(step.bead, step.of, step.hint, prayer.title));
       add(stage, await renderPrayer(prayer));
     }
     const last = index === steps.length - 1;
@@ -229,16 +229,114 @@ export async function renderRosary(container, { set }) {
   };
 }
 
-function decadeMarkers(decade) {
-  const row = el('div', { class: 'decade-markers', role: 'img', 'aria-label': decade >= 1 && decade <= 5 ? `Decade ${decade} of 5` : 'Rosary progress' });
-  for (let number = 1; number <= 5; number += 1) {
+// ---------------------------------------------------------------------------
+// The chaplets
+// ---------------------------------------------------------------------------
+
+/**
+ * A chaplet prayed bead by bead, like the Rosary: the Chaplet of Divine Mercy
+ * and any other described in data-prayers.json. It keeps its place for the
+ * day, and a short buzz marks the end of each decade.
+ */
+export async function renderChaplet(container, { id }) {
+  const item = chaplet(id);
+  if (!item) {
+    add(container,
+      el('header', { class: 'reader-bar' }, el('button', { class: 'back-button', onclick: () => goBack('#/pray') }, icon('back'), el('span', { text: 'Back' }))),
+      el('p', { class: 'empty', text: 'That chaplet is not in the app.' }));
+    return undefined;
+  }
+  const steps = chapletSteps(item);
+  const rounds = chapletRounds(item);
+  const progressKey = `chaplet:${item.id}`;
+  const saved = settings().devotionProgress;
+  // -1 is the opening page, with what the chaplet is; a place kept from earlier today goes straight back to it.
+  let index = saved && saved.key === progressKey && saved.date === today() && saved.step < steps.length ? saved.step : -1;
+  const stage = devotionStage();
+  const bar = el('div', {});
+  const release = keepAwake();
+  let finishedNow = false;
+
+  const draw = inTurn(async () => {
+    clear(stage);
+    if (index === -1) {
+      add(stage,
+        el('p', { class: 'rubric', text: item.sub || '' }),
+        el('h2', { class: 'chapter-title', text: item.name }),
+        (item.about || []).map((paragraph) => el('p', { class: 'devotion-guide', text: paragraph })),
+        item.note ? el('p', { class: 'muted small', text: item.note }) : null);
+      showStepBar(bar, { canBack: false, onBack: () => {}, onNext: () => move(1), nextLabel: 'Begin' });
+      scrollToPosition(0);
+      return;
+    }
+    const step = steps[index];
+    const prayer = await findPrayer(step.prayer);
+    if (rounds) add(stage, decadeMarkers(step.decade, rounds));
+    add(stage, el('p', { class: 'rubric', text: step.section }));
+    if (prayer) {
+      add(stage, el('h2', { class: 'devotion-prayer-title', text: settings().prayerLanguage === 'la' && prayer.latin ? prayer.latin : prayer.title }));
+      if (step.of) add(stage, beads(step.bead, step.of, step.hint, prayer.title));
+      add(stage, await renderPrayer(prayer));
+    }
+    const last = index === steps.length - 1;
+    const next = steps[index + 1];
+    showStepBar(bar, {
+      canBack: true,
+      onBack: () => move(-1),
+      onNext: () => (last ? finish() : move(1)),
+      nextLabel: last ? 'Amen' : (next.of ? `${next.bead} of ${next.of}` : 'Next'),
+    });
+    scrollToPosition(0);
+  });
+
+  async function move(delta) {
+    if (finishedNow) return;
+    const before = steps[index];
+    index = Math.max(-1, Math.min(steps.length - 1, index + delta));
+    if (delta > 0 && before && before.of && before.bead === before.of && navigator.vibrate) navigator.vibrate(40);
+    await saveSetting('devotionProgress', index >= 0 ? { key: progressKey, date: today(), step: index } : null);
+    await draw();
+  }
+
+  async function finish() {
+    if (finishedNow) return;
+    finishedNow = true;
+    await saveSetting('devotionProgress', null);
+    await markByReference(`devotion:${item.id}`, today());
+    clear(bar);
+    finished(stage, item.name, item.end || 'Thanks be to God.');
+  }
+
+  document.body.classList.add('has-step-bar');
+  add(container,
+    el('header', { class: 'reader-bar' },
+      el('button', { class: 'back-button', onclick: () => goBack('#/pray') }, icon('back'), el('span', { text: 'Back' })),
+      el('button', { class: 'icon-button', 'aria-label': 'Language', onclick: () => openSheet('Language', () => [languageToggle(draw)]) }, icon('text', 22))),
+    stage,
+    bar,
+  );
+  try {
+    await draw();
+  } catch (error) {
+    release();
+    throw error;
+  }
+  return () => {
+    release();
+    document.body.classList.remove('has-step-bar');
+  };
+}
+
+function decadeMarkers(decade, total = 5) {
+  const row = el('div', { class: 'decade-markers', role: 'img', 'aria-label': decade >= 1 && decade <= total ? `Decade ${decade} of ${total}` : 'Progress' });
+  for (let number = 1; number <= total; number += 1) {
     row.append(el('span', { class: `decade-marker${number < decade ? ' done' : ''}${number === decade ? ' current' : ''}` }));
   }
   return row;
 }
 
-function beads(current, total, hint) {
-  const row = el('div', { class: 'beads', role: 'img', 'aria-label': `Hail Mary ${current} of ${total}` });
+function beads(current, total, hint, name = 'Hail Mary') {
+  const row = el('div', { class: 'beads', role: 'img', 'aria-label': `${name} ${current} of ${total}` });
   for (let number = 1; number <= total; number += 1) {
     row.append(el('span', { class: `bead${number < current ? ' done' : ''}${number === current ? ' current' : ''}` }));
   }
