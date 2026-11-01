@@ -1,32 +1,82 @@
 <!DOCTYPE html>
-<!-- index.html
-     The one page of the app. Everything else is loaded by app.js. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- The privacy promise, enforced by the browser: the app may load and contact
-       nothing but its own files. See PRIVACY.md. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'" />
-  <meta name="referrer" content="no-referrer" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Biblica</title>
-  <meta name="description" content="A Catholic Bible and daily prayer companion that works offline." />
+  <title>Bloom</title>
 
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#f2f6f1" />
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#b5739d" />
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#18141a" />
 
-  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Biblica" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Bloom" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
 
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div id="app"></div>
-  <noscript>Biblica needs JavaScript to run.</noscript>
-  <script type="module" src="app.js"></script>
+
+  <script src="weekContent.js"></script>
+  <script src="foodDatabase.js"></script>
+  <script src="logOptions.js"></script>
+  <script src="symptomRelief.js"></script>
+  <script src="listTemplates.js"></script>
+  <script src="gestational.js"></script>
+  <script src="charts.js"></script>
+  <script src="db.js"></script>
+  <script src="birthPlan.js"></script>
+  <script src="laborGuide.js"></script>
+  <script src="newbornGuide.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('sw.js');
+          window.__bloomSW = reg;
+
+          // Force an update check now, and hourly while the app stays open.
+          reg.update().catch(() => {});
+          setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
+
+          const hadController = !!navigator.serviceWorker.controller;
+          let banner = false;
+          function showUpdateBanner() {
+            if (banner) return;
+            banner = true;
+            const bar = document.createElement('div');
+            bar.className = 'update-banner';
+            const msg = document.createElement('span');
+            msg.textContent = 'A new version of Bloom is ready.';
+            const btn = document.createElement('button');
+            btn.textContent = 'Refresh';
+            btn.onclick = () => location.reload();
+            bar.appendChild(msg);
+            bar.appendChild(btn);
+            document.body.appendChild(bar);
+          }
+
+          // A newly installed worker while one already controls the page = update.
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', () => {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                showUpdateBanner();
+              }
+            });
+          });
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (hadController) showUpdateBanner();
+          });
+        } catch (e) {
+          /* offline or unsupported — app still works */
+        }
+      });
+    }
+  </script>
 </body>
 </html>
